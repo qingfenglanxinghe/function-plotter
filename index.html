@@ -1542,6 +1542,10 @@ function draw() {
 	}
 }
 
+/* 公开 API：三个纯逻辑模块不含任何 DOM 依赖，可单独取用，
+   也便于在浏览器控制台直接调用（见 README「Extending」一节）。 */
+window.FunctionPlot = { Expr, Viewport, Numeric };
+
 /* 调试钩子：离屏冒烟测试与浏览器控制台手动重绘用。
    不参与正常流程，纯粹是给「确认到底画没画」留一个入口。 */
 window.__fpDraw = draw;
