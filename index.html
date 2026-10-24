@@ -828,6 +828,30 @@ class Renderer {
 		this.dpr = 1;
 		this.cssW = 0;
 		this.cssH = 0;
+		this.colors = null;
+	}
+
+	/**
+	 * 一次性读出全部主题色并缓存。
+	 * getComputedStyle 会触发样式重算，如果在每个标记上各调一次，
+	 * 零点密集时单帧可累积数十次调用，是明显的性能陷阱。
+	 */
+	refreshColors() {
+		const cs = getComputedStyle(document.documentElement);
+		const g = n => cs.getPropertyValue(n).trim();
+		this.colors = {
+			bgCanvas: g("--bg-canvas"),
+			gridMinor: g("--grid-minor"),
+			gridMajor: g("--grid-major"),
+			axis: g("--axis"),
+			textFaint: g("--text-faint"),
+			textDim: g("--text-dim")
+		};
+		return this.colors;
+	}
+
+	themeColors() {
+		return this.colors || this.refreshColors();
 	}
 
 	resize() {
@@ -879,11 +903,11 @@ class Renderer {
 		const ctx = this.ctx, vp = this.vp, W = vp.W, H = vp.H;
 		if (W < 2 || H < 2) return;
 
-		const dark = currentTheme() === "dark";
-		const cMinor = cssVar("--grid-minor");
-		const cMajor = cssVar("--grid-major");
-		const cAxis = cssVar("--axis");
-		const cText = cssVar("--text-faint");
+		const C = this.themeColors();
+		const cMinor = C.gridMinor;
+		const cMajor = C.gridMajor;
+		const cAxis = C.axis;
+		const cText = C.textFaint;
 
 		const stepX = this.niceStep(vp.kx, 84);
 		const stepY = this.niceStep(vp.ky, 84);
@@ -978,7 +1002,7 @@ class Renderer {
 		}
 
 		/* 轴向字母 */
-		ctx.fillStyle = cssVar("--text-dim");
+		ctx.fillStyle = C.textDim;
 		ctx.font = "italic 12px Georgia, serif";
 		if (showXAxis) {
 			ctx.textAlign = "right"; ctx.textBaseline = "bottom";
@@ -988,8 +1012,6 @@ class Renderer {
 			ctx.textAlign = "left"; ctx.textBaseline = "top";
 			ctx.fillText("y", ax + 7, 8);
 		}
-		/* 防止未使用变量告警 */
-		void dark;
 	}
 
 	strokeSegs(segs, color, width, dash, alpha) {
@@ -1014,10 +1036,11 @@ class Renderer {
 
 	dot(sx, sy, radius, color, hollow) {
 		const ctx = this.ctx;
+		const bg = this.themeColors().bgCanvas;
 		ctx.beginPath();
 		ctx.arc(sx, sy, radius, 0, Math.PI * 2);
 		if (hollow) {
-			ctx.fillStyle = cssVar("--bg-canvas");
+			ctx.fillStyle = bg;
 			ctx.fill();
 			ctx.strokeStyle = color;
 			ctx.lineWidth = 1.6;
@@ -1025,7 +1048,7 @@ class Renderer {
 		} else {
 			ctx.fillStyle = color;
 			ctx.fill();
-			ctx.strokeStyle = cssVar("--bg-canvas");
+			ctx.strokeStyle = bg;
 			ctx.lineWidth = 1.4;
 			ctx.stroke();
 		}
@@ -1037,7 +1060,7 @@ class Renderer {
 		ctx.rect(sx - size / 2, sy - size / 2, size, size);
 		ctx.fillStyle = color;
 		ctx.fill();
-		ctx.strokeStyle = cssVar("--bg-canvas");
+		ctx.strokeStyle = this.themeColors().bgCanvas;
 		ctx.lineWidth = 1.2;
 		ctx.stroke();
 	}
@@ -1048,7 +1071,7 @@ class Renderer {
 		ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
 		const pad = 3;
 		const w = ctx.measureText(text).width;
-		const bg = cssVar("--bg-canvas");
+		const bg = this.themeColors().bgCanvas;
 		ctx.globalAlpha = 0.82;
 		ctx.fillStyle = bg;
 		ctx.fillRect(sx + 5 - pad, sy - 15, w + pad * 2, 14);
@@ -1102,7 +1125,9 @@ const App = {
 	analysis: { roots: false, extrema: false, cross: false, deriv: false, tan: "" },
 	hover: null,
 	raf: 0,
-	readout: null
+	readout: null,
+	interacting: false,
+	interactTimer: 0
 };
 
 const $ = id => document.getElementById(id);
@@ -1254,17 +1279,32 @@ function scheduleDraw() {
 	});
 }
 
+/** 标记进入交互状态；停止 160ms 后恢复完整渲染 */
+function beginInteract() {
+	App.interacting = true;
+	clearTimeout(App.interactTimer);
+	App.interactTimer = setTimeout(() => {
+		App.interacting = false;
+		scheduleDraw();
+	}, 160);
+}
+
 function draw() {
 	const r = App.renderer;
 	if (!r) return;
 	const vp = App.vp;
 
+	r.refreshColors();
 	r.ctx.clearRect(0, 0, vp.W, vp.H);
 	r.drawGrid();
 
 	const a = App.analysis;
 	const x0 = vp.toWx(0), x1 = vp.toWx(vp.W);
 	const active = App.curves.filter(c => c.visible && c.fn);
+
+	/* 拖拽 / 缩放期间跳过数值分析：求根与求极值需要数千次求值，
+	   每帧全算会让平移明显掉帧。松手 160ms 后补算。 */
+	const skipAnalysis = !!App.interacting;
 
 	/* 导函数曲线（先画，压在主线下面；降透明度以示区别） */
 	if (a.deriv) {
@@ -1285,9 +1325,10 @@ function draw() {
 	});
 
 	/* 分析标记 */
-	const notes = [];
+	let notes = App.readout || [];
 
-	if (a.roots || a.extrema || a.cross) {
+	if (!skipAnalysis && (a.roots || a.extrema || a.cross)) {
+		notes = [];
 		active.forEach(c => {
 			if (a.roots) {
 				const rs = Numeric.roots(c.fn, x0, x1, 2200);
@@ -1350,7 +1391,7 @@ function draw() {
 		const sx = vp.toSx(hx);
 		const ctx = r.ctx;
 		ctx.save();
-		ctx.strokeStyle = cssVar("--text-faint");
+		ctx.strokeStyle = r.themeColors().textFaint;
 		ctx.globalAlpha = 0.5;
 		ctx.lineWidth = 1;
 		ctx.setLineDash([3, 4]);
@@ -1370,7 +1411,7 @@ function draw() {
 	}
 
 	App.readout = notes;
-	renderReadout(notes);
+	if (!skipAnalysis) renderReadout(notes);
 }
 
 function renderReadout(notes) {
@@ -1497,6 +1538,7 @@ function bindCanvas() {
 			lastX = p.x; lastY = p.y;
 			vp.panBy(dx, dy);
 			App.hover = null;
+			beginInteract();
 			scheduleDraw();
 			return;
 		}
@@ -1534,6 +1576,7 @@ function bindCanvas() {
 		vp.zoomAt(p.x, p.y, clamp(factor, 0.2, 5));
 		App.hover = { wx: vp.toWx(p.x) };
 		updateHud(p);
+		beginInteract();
 		scheduleDraw();
 	}, { passive: false });
 
@@ -1548,6 +1591,7 @@ function bindCanvas() {
 		const my = (t0.clientY + t1.clientY) / 2 - r.top;
 		if (pinchDist > 0) {
 			vp.zoomAt(mx, my, clamp(d / pinchDist, 0.5, 2));
+			beginInteract();
 			scheduleDraw();
 		}
 		pinchDist = d;
