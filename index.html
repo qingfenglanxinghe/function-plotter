@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="一个只做函数图像与图像分析的在线画板：零点、极值、交点、导函数、切线。零依赖，单文件。">
+<title>函数画板 · Function Plotter</title>
+<style>
+/* ============================================================
+   主题变量
+   ============================================================ */
+:root{
+	--bg:#ffffff;
+	--bg-canvas:#fcfcfd;
+	--panel:#ffffff;
+	--panel-soft:#f6f7f9;
+	--line:#e4e7ec;
+	--line-soft:#eef1f5;
+	--text:#1b1f24;
+	--text-dim:#6b7280;
+	--text-faint:#9aa3ae;
+	--accent:#2563eb;
+	--accent-soft:#eff4ff;
+	--danger:#dc2626;
+	--grid-minor:#f0f2f6;
+	--grid-major:#e2e7ee;
+	--axis:#8b95a1;
+	--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.04);
+	--c1:#2563eb; --c2:#dc2626; --c3:#059669; --c4:#d97706;
+	--c5:#7c3aed; --c6:#0891b2; --c7:#db2777; --c8:#65a30d;
+}
+html[data-theme="dark"]{
+	--bg:#0d0f13;
+	--bg-canvas:#12151a;
+	--panel:#15181e;
+	--panel-soft:#1a1e25;
+	--line:#262b33;
+	--line-soft:#1e232a;
+	--text:#e6e8eb;
+	--text-dim:#9aa3ae;
+	--text-faint:#6b7280;
+	--accent:#3b82f6;
+	--accent-soft:#16233a;
+	--danger:#f87171;
+	--grid-minor:#181d24;
+	--grid-major:#222932;
+	--axis:#4b5563;
+	--shadow:0 1px 2px rgba(0,0,0,.4);
+	--c1:#60a5fa; --c2:#f87171; --c3:#34d399; --c4:#fbbf24;
+	--c5:#a78bfa; --c6:#22d3ee; --c7:#f472b6; --c8:#a3e635;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+	margin:0;
+	background:var(--bg);
+	color:var(--text);
+	font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+	-webkit-font-smoothing:antialiased;
+	overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+
+/* ============================================================
+	布局
+   ============================================================ */
+.app{display:flex;flex-direction:column;height:100%}
+
+.topbar{
+	display:flex;align-items:center;gap:12px;
+	height:52px;flex:0 0 52px;padding:0 16px;
+	border-bottom:1px solid var(--line);
+	background:var(--panel);
+}
+.brand{display:flex;align-items:baseline;gap:8px;font-weight:600;letter-spacing:.01em}
+.brand small{font-weight:400;font-size:11px;color:var(--text-faint);letter-spacing:.04em;text-transform:uppercase}
+.topbar .spacer{flex:1}
+.tbtn{
+	display:inline-flex;align-items:center;gap:6px;
+	height:30px;padding:0 12px;border-radius:7px;
+	border:1px solid var(--line);background:var(--panel);
+	color:var(--text-dim);font-size:13px;
+	transition:background .14s,border-color .14s,color .14s;
+}
+.tbtn:hover{background:var(--panel-soft);color:var(--text);border-color:var(--text-faint)}
+.tbtn:active{transform:translateY(.5px)}
+.tbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+main{display:grid;grid-template-columns:290px 1fr;flex:1;min-height:0}
+
+/* ============================================================
+	侧栏
+   ============================================================ */
+.sidebar{
+	display:flex;flex-direction:column;gap:0;
+	border-right:1px solid var(--line);
+	background:var(--panel);overflow-y:auto;overscroll-behavior:contain;
+}
+.sec{padding:14px 14px 16px;border-bottom:1px solid var(--line-soft)}
+.sec:last-child{border-bottom:0}
+.sec-h{
+	display:flex;align-items:center;justify-content:space-between;
+	margin-bottom:10px;
+	font-size:11px;font-weight:600;letter-spacing:.08em;
+	color:var(--text-faint);text-transform:uppercase;
+}
+.sec-h .add{
+	display:grid;place-items:center;width:22px;height:22px;border-radius:6px;
+	font-size:15px;line-height:1;color:var(--text-dim);
+	border:1px solid var(--line);
+}
+.sec-h .add:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.sec-h .add:disabled{opacity:.35;cursor:not-allowed}
+
+/* ---- 曲线条目 ---- */
+.curve{
+	display:flex;align-items:center;gap:7px;
+	padding:5px 0;
+}
+.swatch{
+	flex:0 0 10px;width:10px;height:10px;border-radius:50%;
+	box-shadow:0 0 0 2px color-mix(in srgb,currentColor 18%,transparent);
+}
+.curve .wrap{position:relative;flex:1;min-width:0}
+.curve input{
+	width:100%;height:30px;padding:0 8px;
+	border:1px solid var(--line);border-radius:7px;
+	background:var(--panel-soft);
+	font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+	font-size:12.5px;letter-spacing:.01em;
+	transition:border-color .14s,background .14s;
+}
+.curve input:focus{
+	outline:none;border-color:var(--accent);background:var(--panel);
+	box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+.curve.bad input{border-color:var(--danger);color:var(--danger)}
+.curve.off .swatch{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--text-faint)}
+.curve.off input{color:var(--text-faint);text-decoration:line-through;text-decoration-thickness:1px}
+.iconbtn{
+	display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;
+	border-radius:6px;color:var(--text-faint);font-size:12px;
+	transition:background .14s,color .14s;
+}
+.iconbtn:hover{background:var(--panel-soft);color:var(--text)}
+.iconbtn.del:hover{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
+.iconbtn:disabled{opacity:.3;cursor:not-allowed}
+
+.curve-err{
+	margin:2px 0 0 17px;
+	font-size:11px;color:var(--danger);
+	font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+	word-break:break-word;
+}
+
+/* ---- 分析开关 ---- */
+.check{
+	display:flex;align-items:center;gap:9px;
+	padding:6px 2px;border-radius:6px;cursor:pointer;
+	font-size:13px;color:var(--text-dim);
+	user-select:none;
+}
+.check:hover{color:var(--text)}
+.check input{
+	appearance:none;-webkit-appearance:none;
+	flex:0 0 16px;width:16px;height:16px;margin:0;
+	border:1.5px solid var(--line);border-radius:5px;
+	background:var(--panel);cursor:pointer;
+	position:relative;transition:background .14s,border-color .14s;
+}
+.check input:checked{background:var(--accent);border-color:var(--accent)}
+.check input:checked::after{
+	content:"";position:absolute;left:4.5px;top:1.5px;
+	width:4px;height:8px;
+	border:solid #fff;border-width:0 1.8px 1.8px 0;
+	transform:rotate(42deg);
+}
+.check input:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.check.off{opacity:.45;cursor:not-allowed}
+.check.off input{cursor:not-allowed}
+
+.tanrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.tanrow label{flex:0 0 58px;font-size:12.5px;color:var(--text-dim)}
+.tanrow input{
+	flex:1;min-width:0;height:28px;padding:0 8px;
+	border:1px solid var(--line);border-radius:7px;background:var(--panel-soft);
+	font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+}
+.tanrow input:focus{
+	outline:none;border-color:var(--accent);background:var(--panel);
+	box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+
+/* ---- 分析结果读数 ---- */
+.readout{
+	margin-top:12px;padding:10px 11px;
+	border:1px solid var(--line-soft);border-radius:9px;
+	background:var(--panel-soft);
+	font-size:11.5px;line-height:1.75;color:var(--text-dim);
+	font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+	max-height:180px;overflow-y:auto;
+	display:none;
+}
+.readout.show{display:block}
+.readout b{color:var(--text);font-weight:600}
+.readout .k{color:var(--text-faint)}
+
+/* ============================================================
+	画布区
+   ============================================================ */
+.stage{position:relative;min-width:0;background:var(--bg-canvas);overflow:hidden}
+#board{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#board.panning{cursor:grabbing}
+
+.hud{
+	position:absolute;left:12px;bottom:12px;
+	padding:6px 10px;border-radius:8px;
+	background:color-mix(in srgb,var(--panel) 88%,transparent);
+	border:1px solid var(--line);
+	backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+	font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+	font-size:11.5px;color:var(--text-dim);
+	pointer-events:none;white-space:nowrap;
+	box-shadow:var(--shadow);opacity:0;transition:opacity .16s;
+}
+.hud.show{opacity:1}
+
+.legend{
+	position:absolute;right:12px;top:12px;
+	display:flex;flex-direction:column;gap:5px;
+	padding:9px 11px;border-radius:9px;
+	background:color-mix(in srgb,var(--panel) 88%,transparent);
+	border:1px solid var(--line);
+	backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+	font-size:11.5px;color:var(--text-dim);
+	box-shadow:var(--shadow);pointer-events:none;
+	max-width:240px;
+}
+.legend .li{display:flex;align-items:center;gap:7px}
+.legend .li .bar{width:14px;height:2.5px;border-radius:2px;flex:0 0 14px}
+.legend .li .nm{
+	font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+	overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.legend.hide{display:none}
+
+.stage-tools{
+	position:absolute;right:12px;bottom:12px;
+	display:flex;flex-direction:column;gap:6px;
+}
+.fbtn{
+	display:grid;place-items:center;
+	width:32px;height:32px;border-radius:8px;
+	border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);
+	backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+	color:var(--text-dim);font-size:13px;
+	box-shadow:var(--shadow);transition:background .14s,color .14s;
+}
+.fbtn:hover{background:var(--panel);color:var(--text)}
+.fbtn:active{transform:translateY(.5px)}
+
+/* ============================================================
+	窄屏
+   ============================================================ */
+@media (max-width:760px){
+	main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+	.sidebar{
+		flex-direction:row;border-right:0;border-bottom:1px solid var(--line);
+		overflow-x:auto;overflow-y:hidden;
+		-webkit-overflow-scrolling:touch;
+	}
+	/* 两块按比例分屏，保证一屏内完整可见，不依赖横向滑动 */
+	.sec{border-bottom:0;border-right:1px solid var(--line-soft);padding:10px 11px 11px;min-width:0}
+	.sec.curves-sec{flex:0 0 42%}
+	.sec.analysis-sec{flex:1 1 auto}
+	.sec-h{margin-bottom:7px;font-size:10.5px}
+	.check{padding:3px 1px;font-size:12.5px;gap:7px}
+	.check input{flex:0 0 15px;width:15px;height:15px}
+	.tanrow{margin-top:5px;gap:6px}
+	.tanrow label{flex:0 0 48px;font-size:12px}
+	.tanrow input{height:26px;font-size:12px}
+	.readout{display:none!important}
+	.legend{max-width:150px;font-size:11px}
+	.topbar{padding:0 12px;height:48px;flex-basis:48px}
+	.brand small{display:none}
+	.tbtn{padding:0 9px;font-size:12px}
+}
+@media (max-width:420px){
+	.hud{font-size:11px;left:8px;bottom:8px}
+	.stage-tools{right:8px;bottom:8px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+	<header class="topbar">
+		<div class="brand">函数画板<small>function plotter</small></div>
+		<div class="spacer"></div>
+		<button class="tbtn" id="btnFit" title="自动适配视图 (F)">自适应</button>
+		<button class="tbtn" id="btnPng" title="导出 PNG">导出</button>
+		<button class="tbtn" id="btnTheme" title="切换主题">深色</button>
+	</header>
+	<main>
+		<aside class="sidebar">
+			<section class="sec curves-sec">
+				<div class="sec-h">
+					<span>函数</span>
+					<button class="add" id="btnAdd" title="添加函数">+</button>
+				</div>
+				<div id="curveList"></div>
+			</section>
+			<section class="sec analysis-sec">
+				<div class="sec-h"><span>图像分析</span></div>
+				<label class="check"><input type="checkbox" id="anRoots"><span>零点</span></label>
+				<label class="check"><input type="checkbox" id="anExtrema"><span>极值点</span></label>
+				<label class="check"><input type="checkbox" id="anCross"><span>曲线交点</span></label>
+				<label class="check"><input type="checkbox" id="anDeriv"><span>导函数曲线</span></label>
+				<div class="tanrow">
+					<label for="anTan">切线 x₀</label>
+					<input type="text" id="anTan" placeholder="如 1.5，留空关闭" spellcheck="false">
+				</div>
+				<div class="readout" id="readout"></div>
+			</section>
+		</aside>
+		<div class="stage" id="stage">
+			<canvas id="board"></canvas>
+			<div class="legend hide" id="legend"></div>
+			<div class="hud" id="hud"></div>
+			<div class="stage-tools">
+				<button class="fbtn" id="btnIn" title="放大">+</button>
+				<button class="fbtn" id="btnOut" title="缩小">−</button>
+				<button class="fbtn" id="btnReset" title="回到原点">⌂</button>
+			</div>
+		</div>
+	</main>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   函数画板 Function Plotter
+   一个只做「函数图像 + 图像分析」的画板。零依赖，单文件，可直接静态托管。
+   模块顺序：表达式引擎 → 视口 → 采样 → 数值分析 → 渲染 → 状态
+   ========================================================================== */
+
+/* ============================================================
+   1. 数学常量与函数
+   ============================================================ */
+const CONSTS = {
+	pi: Math.PI,
+	tau: Math.PI * 2,
+	e: Math.E
+};
+
+const FUNCS = {
+	sin: Math.sin, cos: Math.cos, tan: Math.tan,
+	asin: Math.asin, acos: Math.acos, atan: Math.atan, atan2: Math.atan2,
+	sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+	sqrt: Math.sqrt, cbrt: Math.cbrt, abs: Math.abs,
+	ln: Math.log, log: Math.log10, log2: Math.log2, exp: Math.exp,
+	floor: Math.floor, ceil: Math.ceil, round: Math.round,
+	trunc: Math.trunc, sign: Math.sign, fract: x => x - Math.floor(x),
+	pow: Math.pow, mod: (a, b) => ((a % b) + b) % b,
+	min: Math.min, max: Math.max,
+	step: x => (x >= 0 ? 1 : 0),
+	sgn: (x, p) => Math.sign(x) * Math.pow(Math.abs(x), p === undefined ? 1 : p)
+};
+
+/* 最长匹配优先：func 或 const 名单，按长度降序 */
+const NAMES = Object.keys(FUNCS).concat(Object.keys(CONSTS))
+	.sort((a, b) => b.length - a.length || (a < b ? -1 : 1));
+
+/* ============================================================
+   2. 表达式引擎
+   词法 → 语法 → 编译为闭包。编译后调用开销接近原生函数。
+   ============================================================ */
+
+const Expr = (() => {
+
+	/** 归一化：全角/数学符号 → ASCII，使公式可以直接粘贴 */
+	function normalize(src) {
+		return String(src)
+			.replace(/[\uFF08]/g, "(").replace(/[\uFF09]/g, ")")
+			.replace(/[\uFF0C]/g, ",").replace(/[\uFF0B]/g, "+")
+			.replace(/[\u2212\u2013\u2014\uFF0D]/g, "-")
+			.replace(/[\u00D7\u00B7\u22C5\uFF0A]/g, "*")
+			.replace(/[\u00F7\uFF0F]/g, "/")
+			.replace(/\u03C0/g, "pi").replace(/\u03C4/g, "tau")
+			.replace(/\u00B2/g, "^2").replace(/\u00B3/g, "^3")
+			.replace(/\u221A/g, "sqrt")
+			.replace(/[\u200B-\u200D\uFEFF]/g, "");
+	}
+
+	const isDigit = c => c >= "0" && c <= "9";
+	const isAlpha = c => /[A-Za-z]/.test(c);
+
+	function tokenize(src) {
+		const s = normalize(src);
+		const out = [];
+		let i = 0;
+
+		while (i < s.length) {
+			const c = s[i];
+
+			if (c === " " || c === "\t" || c === "\n" || c === "\r") { i++; continue; }
+
+			/* 数字（含小数与科学计数） */
+			if (isDigit(c) || (c === "." && isDigit(s[i + 1]))) {
+				let j = i, dot = false;
+				while (j < s.length && (isDigit(s[j]) || (!dot && s[j] === "."))) {
+					if (s[j] === ".") dot = true;
+					j++;
+				}
+				if (s[j] === "e" || s[j] === "E") {
+					const n1 = s[j + 1], n2 = s[j + 2];
+					if (isDigit(n1) || ((n1 === "+" || n1 === "-") && isDigit(n2))) {
+						j += 2;
+						while (j < s.length && isDigit(s[j])) j++;
+					}
+				}
+				out.push({ t: "num", v: parseFloat(s.slice(i, j)) });
+				i = j; continue;
+			}
+
+			/* 标识符：先试最长匹配已知函数/常量，否则取单字母变量 */
+			if (isAlpha(c)) {
+				let hit = null;
+				for (let k = 0; k < NAMES.length; k++) {
+					const nm = NAMES[k];
+					if (s.startsWith(nm, i)) { hit = nm; break; }
+				}
+				if (hit) {
+					if (Object.prototype.hasOwnProperty.call(CONSTS, hit)) {
+						out.push({ t: "const", v: hit });
+					} else {
+						out.push({ t: "func", v: hit });
+					}
+					i += hit.length;
+				} else {
+					out.push({ t: "var", v: c });
+					i++;
+				}
+				continue;
+			}
+
+			if ("+-*/^(),".indexOf(c) >= 0) { out.push({ t: c }); i++; continue; }
+
+			throw new Error("无法识别的字符 “" + c + "”");
+		}
+
+		/* 隐式乘法：(x+1)(x-1)  2x  3sin(x)  x(x+2) */
+		const merged = [];
+		for (let k = 0; k < out.length; k++) {
+			const prev = out[k - 1], cur = out[k];
+			if (prev) {
+				const ends = prev.t === "num" || prev.t === "var" || prev.t === "const" || prev.t === ")";
+				const starts = cur.t === "num" || cur.t === "var" || cur.t === "const"
+					|| cur.t === "func" || cur.t === "(";
+				if (ends && starts) merged.push({ t: "*" });
+			}
+			merged.push(cur);
+		}
+		return merged;
+	}
+
+	function parse(tokens) {
+		let i = 0;
+		const peek = () => tokens[i];
+		const eat = t => { if (tokens[i] && tokens[i].t === t) { i++; return true; } return false; };
+
+		function addsub() {
+			let l = muldiv();
+			while (peek() && (peek().t === "+" || peek().t === "-")) {
+				const op = tokens[i++].t;
+				l = { type: "bin", op, a: l, b: muldiv() };
+			}
+			return l;
+		}
+		function muldiv() {
+			let l = unary();
+			while (peek() && (peek().t === "*" || peek().t === "/")) {
+				const op = tokens[i++].t;
+				l = { type: "bin", op, a: l, b: unary() };
+			}
+			return l;
+		}
+		/* 一元负号绑定弱于乘方：-x^2 读作 -(x^2) */
+		function unary() {
+			if (peek() && (peek().t === "-" || peek().t === "+")) {
+				const op = tokens[i++].t;
+				const a = unary();
+				return op === "-" ? { type: "neg", a } : a;
+			}
+			return power();
+		}
+		function power() {
+			const base = atom();
+			if (peek() && peek().t === "^") {
+				i++;
+				return { type: "bin", op: "^", a: base, b: unary() };  /* 右结合 */
+			}
+			return base;
+		}
+		function atom() {
+			const tk = peek();
+			if (!tk) throw new Error("表达式不完整");
+
+			if (tk.t === "num") { i++; return { type: "num", v: tk.v }; }
+			if (tk.t === "const") { i++; return { type: "num", v: CONSTS[tk.v] }; }
+			if (tk.t === "var") {
+				i++;
+				if (tk.v !== "x") throw new Error("未知变量 “" + tk.v + "”，只能用 x");
+				return { type: "var" };
+			}
+			if (tk.t === "func") {
+				const nm = tokens[i++].v;
+				if (!eat("(")) throw new Error(nm + " 后面需要括号，应写成 " + nm + "(x)");
+				const args = [addsub()];
+				while (eat(",")) args.push(addsub());
+				if (!eat(")")) throw new Error("缺少右括号");
+				return { type: "call", name: nm, args };
+			}
+			if (tk.t === "(") {
+				i++;
+				const e = addsub();
+				if (!eat(")")) throw new Error("缺少右括号");
+				return e;
+			}
+			throw new Error("意外的符号 “" + tk.t + "”");
+		}
+
+		const ast = addsub();
+		if (i < tokens.length) throw new Error("多余的符号 “" + tokens[i].t + "”");
+		return ast;
+	}
+
+	function compile(ast) {
+		switch (ast.type) {
+			case "num": { const v = ast.v; return () => v; }
+			case "var": return x => x;
+			case "neg": { const a = compile(ast.a); return x => -a(x); }
+			case "bin": {
+				const a = compile(ast.a), b = compile(ast.b);
+				switch (ast.op) {
+					case "+": return x => a(x) + b(x);
+					case "-": return x => a(x) - b(x);
+					case "*": return x => a(x) * b(x);
+					case "/": return x => a(x) / b(x);
+					case "^": return x => Math.pow(a(x), b(x));
+				}
+				break;
+			}
+			case "call": {
+				const f = FUNCS[ast.name];
+				if (!f) throw new Error("未知函数 “" + ast.name + "”");
+				const A = ast.args.map(compile);
+				if (A.length === 1) { const a = A[0]; return x => f(a(x)); }
+				if (A.length === 2) { const a = A[0], b = A[1]; return x => f(a(x), b(x)); }
+				if (A.length === 3) { const a = A[0], b = A[1], c = A[2]; return x => f(a(x), b(x), c(x)); }
+				throw new Error("参数过多（最多 3 个）");
+			}
+		}
+		throw new Error("内部错误：未知节点");
+	}
+
+	/** 编译表达式字符串为 (x) => number */
+	function parseToFn(src) {
+		const text = String(src == null ? "" : src).trim();
+		if (!text) throw new Error("表达式为空");
+		return compile(parse(tokenize(text)));
+	}
+
+	return { parseToFn, tokenize, parse, normalize };
+})();
+
+/* ============================================================
+   3. 视口：世界坐标 ↔ 屏幕坐标
+   ============================================================ */
+class Viewport {
+	constructor() {
+		this.cx = 0;      /* 视图中心（世界坐标） */
+		this.cy = 0;
+		this.kx = 60;     /* 每世界单位对应的像素数 */
+		this.ky = 60;
+		this.W = 800;     /* 画布逻辑尺寸（CSS 像素） */
+		this.H = 600;
+	}
+	toSx(wx) { return this.W / 2 + (wx - this.cx) * this.kx; }
+	toSy(wy) { return this.H / 2 - (wy - this.cy) * this.ky; }
+	toWx(sx) { return this.cx + (sx - this.W / 2) / this.kx; }
+	toWy(sy) { return this.cy - (sy - this.H / 2) / this.ky; }
+
+	/** 以屏幕点 (sx,sy) 为不动点缩放 */
+	zoomAt(sx, sy, factor) {
+		const wx = this.toWx(sx), wy = this.toWy(sy);
+		this.kx = clamp(this.kx * factor, 1e-4, 1e7);
+		this.ky = clamp(this.ky * factor, 1e-4, 1e7);
+		this.cx = wx - (sx - this.W / 2) / this.kx;
+		this.cy = wy + (sy - this.H / 2) / this.ky;
+	}
+	panBy(dxPx, dyPx) {
+		this.cx -= dxPx / this.kx;
+		this.cy += dyPx / this.ky;
+	}
+}
+
+function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+/* ============================================================
+   4. 采样：自适应密度 + 断点识别
+   ============================================================ */
+function safeEval(fn, x) {
+	try {
+		const y = fn(x);
+		return Number.isFinite(y) ? y : null;
+	} catch (e) {
+		return null;
+	}
+}
+
+/**
+ * 把函数在当前视口内采样成若干屏幕空间折线。
+ * 关键点：跨越渐近线（1/x、tan x）时必须断开，否则会画出竖直线。
+ */
+function samplePath(fn, vp) {
+	const segs = [];
+	let cur = [];
+	const xa = vp.toWx(0), xb = vp.toWx(vp.W);
+	const N = Math.min(3000, Math.max(500, Math.round(vp.W / 1.4)));
+	const yCap = vp.H * 6;           /* 超出太多直接丢弃，省得画巨型线段 */
+	const maxJump = vp.H * 1.1;
+
+	let prevSx = 0, prevSy = null;
+
+	const flush = () => { if (cur.length > 1) segs.push(cur); cur = []; };
+
+	for (let k = 0; k <= N; k++) {
+		const x = xa + (xb - xa) * k / N;
+		const y = safeEval(fn, x);
+		const sx = vp.toSx(x);
+
+		if (y === null) { flush(); prevSy = null; prevSx = sx; continue; }
+
+		const sy = vp.toSy(y);
+		if (!Number.isFinite(sy) || Math.abs(sy) > yCap) {
+			flush(); prevSy = null; prevSx = sx; continue;
+		}
+
+		if (prevSy !== null && Math.abs(sy - prevSy) > maxJump) {
+			/* 大跳变：判断是陡峭连续段还是渐近线 */
+			const xm = vp.toWx((prevSx + sx) / 2);
+			const ymv = safeEval(fn, xm);
+			const lo = Math.min(prevSy, sy), hi = Math.max(prevSy, sy);
+			let isAsymptote = false;
+			if (ymv === null) {
+				isAsymptote = true;
+			} else {
+				const ym = vp.toSy(ymv);
+				const span = hi - lo;
+				isAsymptote = !(ym >= lo - span * 0.25 && ym <= hi + span * 0.25);
+			}
+			if (isAsymptote) { flush(); prevSy = null; }
+		}
+
+		cur.push([sx, sy]);
+		prevSx = sx;
+		prevSy = sy;
+	}
+	flush();
+	return segs;
+}
+
+/* ============================================================
+   5. 数值分析：零点 / 极值 / 交点 / 导数
+   ============================================================ */
+const Numeric = (() => {
+
+	/** 二分求根。渐近线导致的假变号会被末尾的函数值检查排除。 */
+	function bisect(fn, lo, hi, flo) {
+		for (let k = 0; k < 64; k++) {
+			const mid = (lo + hi) / 2;
+			const fm = safeEval(fn, mid);
+			if (fm === null) return null;
+			if (fm === 0) return mid;
+			if (flo * fm < 0) { hi = mid; }
+			else { lo = mid; flo = fm; }
+		}
+		const r = (lo + hi) / 2;
+		const fr = safeEval(fn, r);
+		if (fr === null) return null;
+		if (Math.abs(fr) > 1e6) return null;   /* 1/x 在 0 附近：值爆炸 → 不是零点 */
+		return r;
+	}
+
+	/** 在 [a,b] 内扫描求所有零点 */
+	function roots(fn, a, b, samples) {
+		const n = samples || 1600;
+		const step = (b - a) / n;
+		const res = [];
+		let xp = a, fp = safeEval(fn, a);
+
+		for (let k = 1; k <= n; k++) {
+			const x = a + step * k;
+			const fx = safeEval(fn, x);
+			if (fp !== null && fx !== null) {
+				if (fp === 0) res.push(xp);
+				else if (fp * fx < 0) {
+					const r = bisect(fn, xp, x, fp);
+					if (r !== null) res.push(r);
+				}
+			}
+			xp = x; fp = fx;
+		}
+		return dedupe(res, Math.abs(step) * 2.5);
+	}
+
+	/** 黄金分割求局部极值 */
+	function golden(fn, a, b, maximize) {
+		const R = (Math.sqrt(5) - 1) / 2;
+		let c = b - R * (b - a), d = a + R * (b - a);
+		let fc = safeEval(fn, c), fd = safeEval(fn, d);
+		for (let k = 0; k < 64 && b - a > 1e-12; k++) {
+			if (fc === null || fd === null) break;
+			const betterLeft = maximize ? fc > fd : fc < fd;
+			if (betterLeft) { b = d; d = c; fd = fc; c = b - R * (b - a); fc = safeEval(fn, c); }
+			else { a = c; c = d; fc = fd; d = a + R * (b - a); fd = safeEval(fn, d); }
+		}
+		return (a + b) / 2;
+	}
+
+	/** 扫描找局部极值点，返回 [{x, y, kind}] */
+	function extrema(fn, a, b, samples) {
+		const n = samples || 1600;
+		const step = (b - a) / n;
+		const out = [];
+		let y0 = safeEval(fn, a);
+		let y1 = safeEval(fn, a + step);
+
+		for (let k = 2; k <= n; k++) {
+			const x = a + step * k;
+			const y2 = safeEval(fn, x);
+			if (y0 !== null && y1 !== null && y2 !== null) {
+				const isMax = y1 > y0 && y1 >= y2;
+				const isMin = y1 < y0 && y1 <= y2;
+				if (isMax || isMin) {
+					const xr = golden(fn, x - step * 2, x, isMax);
+					const yr = safeEval(fn, xr);
+					if (yr !== null) out.push({ x: xr, y: yr, kind: isMax ? "max" : "min" });
+				}
+			}
+			y0 = y1; y1 = y2;
+		}
+		return dedupePts(out, Math.abs(step) * 3);
+	}
+
+	/** 两函数交点 */
+	function intersections(f1, f2, a, b, samples) {
+		return roots(x => {
+			const y1 = f1(x), y2 = f2(x);
+			return y1 - y2;
+		}, a, b, samples);
+	}
+
+	/** 数值导数 */
+	function derivative(fn, x) {
+		const h = Math.max(1e-7, Math.abs(x) * 1e-7);
+		const y1 = safeEval(fn, x + h);
+		const y2 = safeEval(fn, x - h);
+		if (y1 === null || y2 === null) return null;
+		return (y1 - y2) / (2 * h);
+	}
+
+	function dedupe(arr, tol) {
+		const out = [];
+		for (let i = 0; i < arr.length; i++) {
+			let dup = false;
+			for (let j = 0; j < out.length; j++) {
+				if (Math.abs(arr[i] - out[j]) < tol) { dup = true; break; }
+			}
+			if (!dup) out.push(arr[i]);
+		}
+		return out;
+	}
+
+	function dedupePts(pts, tol) {
+		const out = [];
+		for (let i = 0; i < pts.length; i++) {
+			let dup = false;
+			for (let j = 0; j < out.length; j++) {
+				if (Math.abs(pts[i].x - out[j].x) < tol) { dup = true; break; }
+			}
+			if (!dup) out.push(pts[i]);
+		}
+		return out;
+	}
+
+	return { roots, extrema, intersections, derivative, bisect };
+})();
+
+/* ============================================================
+   6. 主题色板
+   ============================================================ */
+const PALETTE = {
+	light: ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#65a30d"],
+	dark: ["#60a5fa", "#f87171", "#34d399", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6", "#a3e635"]
+};
+
+function currentTheme() {
+	return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+function palette() {
+	return PALETTE[currentTheme()];
+}
+function cssVar(name) {
+	return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/* ============================================================
+   7. 渲染器
+   ============================================================ */
+class Renderer {
+	constructor(canvas, vp) {
+		this.canvas = canvas;
+		this.ctx = canvas.getContext("2d");
+		this.vp = vp;
+		this.dpr = 1;
+		this.cssW = 0;
+		this.cssH = 0;
+	}
+
+	resize() {
+		const rect = this.canvas.parentElement.getBoundingClientRect();
+		const w = Math.max(1, Math.round(rect.width));
+		const h = Math.max(1, Math.round(rect.height));
+		const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+		this.dpr = dpr;
+		this.cssW = w;
+		this.cssH = h;
+		this.canvas.width = Math.round(w * dpr);
+		this.canvas.height = Math.round(h * dpr);
+		this.canvas.style.width = w + "px";
+		this.canvas.style.height = h + "px";
+		this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+		this.vp.W = w;
+		this.vp.H = h;
+	}
+
+	/* ---------- 网格步长：1 / 2 / 5 × 10^n ---------- */
+	niceStep(pxPerUnit, targetPx) {
+		const raw = (targetPx || 78) / pxPerUnit;
+		const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+		const norm = raw / mag;
+		let mult;
+		if (norm <= 1.2) mult = 1;
+		else if (norm <= 2.4) mult = 2;
+		else if (norm <= 6) mult = 5;
+		else mult = 10;
+		return mult * mag;
+	}
+
+	fmtTick(v, step) {
+		if (Math.abs(v) < step * 1e-6) return "0";
+		const av = Math.abs(v);
+		if (av >= 1e6 || av < 1e-4) {
+			return v.toExponential(1).replace("e+", "e");
+		}
+		let dec = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+		dec = Math.min(dec, 8);
+		let s = v.toFixed(dec);
+		if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+		return s;
+	}
+
+	drawGrid() {
+		const ctx = this.ctx, vp = this.vp, W = vp.W, H = vp.H;
+		if (W < 2 || H < 2) return;
+
+		const dark = currentTheme() === "dark";
+		const cMinor = cssVar("--grid-minor");
+		const cMajor = cssVar("--grid-major");
+		const cAxis = cssVar("--axis");
+		const cText = cssVar("--text-faint");
+
+		const stepX = this.niceStep(vp.kx, 84);
+		const stepY = this.niceStep(vp.ky, 84);
+		const minorX = stepX / (stepX / Math.pow(10, Math.floor(Math.log10(stepX))) === 5 ? 5 : 4);
+		const minorY = stepY / (stepY / Math.pow(10, Math.floor(Math.log10(stepY))) === 5 ? 5 : 4);
+
+		const x0 = vp.toWx(0), x1 = vp.toWx(W);
+		const y1 = vp.toWy(0), y0 = vp.toWy(H);
+
+		/* 次网格 */
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = cMinor;
+		ctx.beginPath();
+		const startMX = Math.ceil(x0 / minorX) * minorX;
+		for (let x = startMX; x <= x1; x += minorX) {
+			const sx = Math.round(vp.toSx(x)) + 0.5;
+			ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+		}
+		const startMY = Math.ceil(y0 / minorY) * minorY;
+		for (let y = startMY; y <= y1; y += minorY) {
+			const sy = Math.round(vp.toSy(y)) + 0.5;
+			ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+		}
+		ctx.stroke();
+
+		/* 主网格 */
+		ctx.strokeStyle = cMajor;
+		ctx.beginPath();
+		const startX = Math.ceil(x0 / stepX) * stepX;
+		for (let x = startX; x <= x1; x += stepX) {
+			const sx = Math.round(vp.toSx(x)) + 0.5;
+			ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+		}
+		const startY = Math.ceil(y0 / stepY) * stepY;
+		for (let y = startY; y <= y1; y += stepY) {
+			const sy = Math.round(vp.toSy(y)) + 0.5;
+			ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+		}
+		ctx.stroke();
+
+		/* 坐标轴 */
+		const ax = vp.toSx(0), ay = vp.toSy(0);
+		const showYAxis = ax > -1 && ax < W + 1;
+		const showXAxis = ay > -1 && ay < H + 1;
+
+		ctx.strokeStyle = cAxis;
+		ctx.lineWidth = 1.4;
+		ctx.beginPath();
+		if (showXAxis) {
+			const py = Math.round(ay) + 0.5;
+			ctx.moveTo(0, py); ctx.lineTo(W, py);
+		}
+		if (showYAxis) {
+			const px = Math.round(ax) + 0.5;
+			ctx.moveTo(px, 0); ctx.lineTo(px, H);
+		}
+		ctx.stroke();
+
+		/* 刻度标签 */
+		ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+		ctx.fillStyle = cText;
+		ctx.lineWidth = 1;
+
+		const labelBaseY = showXAxis ? ay : (y0 <= 0 ? H - 6 : 14);
+		const labelBaseX = showYAxis ? ax : (x0 >= 0 ? 8 : W - 8);
+
+		ctx.textAlign = "center";
+		ctx.textBaseline = "top";
+		for (let x = startX; x <= x1; x += stepX) {
+			if (Math.abs(x) < stepX * 1e-6) continue;
+			const sx = vp.toSx(x);
+			if (sx < 26 || sx > W - 26) continue;
+			const ty = clamp(labelBaseY + 5, 2, H - 16);
+			ctx.fillText(this.fmtTick(x, stepX), sx, ty);
+		}
+
+		ctx.textAlign = "right";
+		ctx.textBaseline = "middle";
+		for (let y = startY; y <= y1; y += stepY) {
+			if (Math.abs(y) < stepY * 1e-6) continue;
+			const sy = vp.toSy(y);
+			if (sy < 12 || sy > H - 12) continue;
+			const tx = clamp(labelBaseX - 6, 28, W - 6);
+			ctx.fillText(this.fmtTick(y, stepY), tx, sy);
+		}
+
+		/* 原点 */
+		if (showXAxis && showYAxis) {
+			ctx.textAlign = "right";
+			ctx.textBaseline = "top";
+			ctx.fillText("0", ax - 5, ay + 5);
+		}
+
+		/* 轴向字母 */
+		ctx.fillStyle = cssVar("--text-dim");
+		ctx.font = "italic 12px Georgia, serif";
+		if (showXAxis) {
+			ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+			ctx.fillText("x", W - 8, ay - 6);
+		}
+		if (showYAxis) {
+			ctx.textAlign = "left"; ctx.textBaseline = "top";
+			ctx.fillText("y", ax + 7, 8);
+		}
+		/* 防止未使用变量告警 */
+		void dark;
+	}
+
+	strokeSegs(segs, color, width, dash, alpha) {
+		const ctx = this.ctx;
+		ctx.save();
+		ctx.strokeStyle = color;
+		ctx.lineWidth = width;
+		ctx.lineJoin = "round";
+		ctx.lineCap = "round";
+		if (alpha !== undefined) ctx.globalAlpha = alpha;
+		if (dash) ctx.setLineDash(dash);
+		for (let s = 0; s < segs.length; s++) {
+			const seg = segs[s];
+			if (seg.length < 2) continue;
+			ctx.beginPath();
+			ctx.moveTo(seg[0][0], seg[0][1]);
+			for (let k = 1; k < seg.length; k++) ctx.lineTo(seg[k][0], seg[k][1]);
+			ctx.stroke();
+		}
+		ctx.restore();
+	}
+
+	dot(sx, sy, radius, color, hollow) {
+		const ctx = this.ctx;
+		ctx.beginPath();
+		ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+		if (hollow) {
+			ctx.fillStyle = cssVar("--bg-canvas");
+			ctx.fill();
+			ctx.strokeStyle = color;
+			ctx.lineWidth = 1.6;
+			ctx.stroke();
+		} else {
+			ctx.fillStyle = color;
+			ctx.fill();
+			ctx.strokeStyle = cssVar("--bg-canvas");
+			ctx.lineWidth = 1.4;
+			ctx.stroke();
+		}
+	}
+
+	square(sx, sy, size, color) {
+		const ctx = this.ctx;
+		ctx.beginPath();
+		ctx.rect(sx - size / 2, sy - size / 2, size, size);
+		ctx.fillStyle = color;
+		ctx.fill();
+		ctx.strokeStyle = cssVar("--bg-canvas");
+		ctx.lineWidth = 1.2;
+		ctx.stroke();
+	}
+
+	label(sx, sy, text, color) {
+		const ctx = this.ctx;
+		ctx.save();
+		ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+		const pad = 3;
+		const w = ctx.measureText(text).width;
+		const bg = cssVar("--bg-canvas");
+		ctx.globalAlpha = 0.82;
+		ctx.fillStyle = bg;
+		ctx.fillRect(sx + 5 - pad, sy - 15, w + pad * 2, 14);
+		ctx.globalAlpha = 1;
+		ctx.fillStyle = color;
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.fillText(text, sx + 5, sy - 8);
+		ctx.restore();
+	}
+
+	/* 切线：过 (x0, f(x0))，斜率 m，在视口内截取合适长度。
+	   slot 用于把多条曲线的标注错开，避免叠在同一个点上。 */
+	tangentLine(fn, x0, color, slot) {
+		const y0 = safeEval(fn, x0);
+		const m = Numeric.derivative(fn, x0);
+		if (y0 === null || m === null) return;
+		const vp = this.vp;
+		const span = (vp.toWx(vp.W) - vp.toWx(0)) * 0.2;
+		const xa = x0 - span, xb = x0 + span;
+		const ya = y0 + m * (xa - x0);
+		const yb = y0 + m * (xb - x0);
+		this.strokeSegs([[[vp.toSx(xa), vp.toSy(ya)], [vp.toSx(xb), vp.toSy(yb)]]], color, 1.4, [5, 4], 0.85);
+		this.dot(vp.toSx(x0), vp.toSy(y0), 4, color, false);
+		const off = (slot || 0) * 15;
+		this.label(vp.toSx(x0), vp.toSy(y0) - 4 - off,
+			"k=" + fmtNum(m, 3) + "  (" + fmtNum(x0, 2) + ", " + fmtNum(y0, 2) + ")", color);
+	}
+}
+
+function fmtNum(v, sig) {
+	if (!Number.isFinite(v)) return "—";
+	/* 二分求根本质上收敛到 1e-16 量级，直接显示会得到 2.2e-16 这种噪声 */
+	if (Math.abs(v) < 5e-10) return "0";
+	const a = Math.abs(v);
+	if (a !== 0 && (a >= 1e5 || a < 1e-3)) return v.toExponential(1).replace("e+", "e");
+	let s = v.toFixed(sig);
+	if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+	return s;
+}
+
+/* ============================================================
+   8. 应用状态
+   ============================================================ */
+const App = {
+	vp: new Viewport(),
+	renderer: null,
+	curves: [],          /* {id, expr, fn, color, visible, error} */
+	seq: 0,
+	nextColor: 0,
+	analysis: { roots: false, extrema: false, cross: false, deriv: false, tan: "" },
+	hover: null,
+	raf: 0,
+	readout: null
+};
+
+const $ = id => document.getElementById(id);
+
+/* ---------- 曲线管理 ---------- */
+
+function pickColor() {
+	const p = palette();
+	return p[App.nextColor++ % p.length];
+}
+
+function addCurve(expr, visible) {
+	if (App.curves.length >= 8) return null;
+	const c = {
+		id: ++App.seq,
+		expr: expr || "",
+		fn: null,
+		color: pickColor(),
+		visible: visible !== false,
+		error: ""
+	};
+	recompile(c);
+	App.curves.push(c);
+	renderCurveList();
+	scheduleDraw();
+	return c;
+}
+
+function removeCurve(id) {
+	App.curves = App.curves.filter(c => c.id !== id);
+	renderCurveList();
+	scheduleDraw();
+}
+
+function recompile(c) {
+	const text = (c.expr || "").trim();
+	if (!text) { c.fn = null; c.error = ""; return; }
+	try {
+		c.fn = Expr.parseToFn(text);
+		c.error = "";
+	} catch (e) {
+		c.fn = null;
+		c.error = e && e.message ? e.message : String(e);
+	}
+}
+
+function renderCurveList() {
+	const box = $("curveList");
+	box.textContent = "";
+
+	App.curves.forEach(c => {
+		const row = document.createElement("div");
+		row.className = "curve" + (c.error ? " bad" : "") + (c.visible ? "" : " off");
+		row.dataset.id = String(c.id);
+
+		const sw = document.createElement("span");
+		sw.className = "swatch";
+		sw.style.background = c.color;
+		sw.style.color = c.color;
+		sw.title = "显示 / 隐藏";
+		sw.style.cursor = "pointer";
+		sw.addEventListener("click", () => {
+			c.visible = !c.visible;
+			renderCurveList();
+			scheduleDraw();
+		});
+
+		const wrap = document.createElement("div");
+		wrap.className = "wrap";
+
+		const input = document.createElement("input");
+		input.type = "text";
+		input.value = c.expr;
+		input.spellcheck = false;
+		input.autocapitalize = "off";
+		input.autocomplete = "off";
+		input.placeholder = "例如 sin(x)、x^2/4-1、1/x";
+		input.addEventListener("input", () => {
+			c.expr = input.value;
+			recompile(c);
+			row.classList.toggle("bad", !!c.error);
+			updateErr(row, c);
+			scheduleDraw();
+		});
+		input.addEventListener("keydown", ev => {
+			if (ev.key === "Enter") { ev.preventDefault(); input.blur(); }
+		});
+		wrap.appendChild(input);
+
+		const del = document.createElement("button");
+		del.className = "iconbtn del";
+		del.textContent = "✕";
+		del.title = "删除这条曲线";
+		del.disabled = App.curves.length <= 1;
+		del.addEventListener("click", () => removeCurve(c.id));
+
+		row.appendChild(sw);
+		row.appendChild(wrap);
+		row.appendChild(del);
+		box.appendChild(row);
+
+		updateErr(row, c);
+	});
+
+	$("btnAdd").disabled = App.curves.length >= 8;
+	renderLegend();
+}
+
+function updateErr(row, c) {
+	const old = row.nextElementSibling;
+	if (old && old.classList && old.classList.contains("curve-err")) old.remove();
+	if (!c.error) return;
+	const div = document.createElement("div");
+	div.className = "curve-err";
+	div.textContent = c.error;
+	row.after(div);
+}
+
+function renderLegend() {
+	const box = $("legend");
+	box.textContent = "";
+	const shown = App.curves.filter(c => c.visible && c.fn);
+	if (shown.length <= 1) { box.classList.add("hide"); return; }
+	box.classList.remove("hide");
+
+	shown.forEach((c, idx) => {
+		const li = document.createElement("div");
+		li.className = "li";
+		const bar = document.createElement("span");
+		bar.className = "bar";
+		bar.style.background = c.color;
+		const nm = document.createElement("span");
+		nm.className = "nm";
+		nm.textContent = "y = " + c.expr;
+		li.appendChild(bar);
+		li.appendChild(nm);
+		box.appendChild(li);
+		void idx;
+	});
+}
+
+/* ---------- 绘制主循环 ---------- */
+
+function scheduleDraw() {
+	if (App.raf) return;
+	App.raf = requestAnimationFrame(() => {
+		App.raf = 0;
+		draw();
+	});
+}
+
+function draw() {
+	const r = App.renderer;
+	if (!r) return;
+	const vp = App.vp;
+
+	r.ctx.clearRect(0, 0, vp.W, vp.H);
+	r.drawGrid();
+
+	const a = App.analysis;
+	const x0 = vp.toWx(0), x1 = vp.toWx(vp.W);
+	const active = App.curves.filter(c => c.visible && c.fn);
+
+	/* 导函数曲线（先画，压在主线下面；降透明度以示区别） */
+	if (a.deriv) {
+		active.forEach(c => {
+			const df = x => {
+				const d = Numeric.derivative(c.fn, x);
+				return d === null ? NaN : d;
+			};
+			const segs = samplePath(df, vp);
+			r.strokeSegs(segs, c.color, 1.4, [6, 5], 0.5);
+		});
+	}
+
+	/* 主曲线 */
+	active.forEach(c => {
+		const segs = samplePath(c.fn, vp);
+		r.strokeSegs(segs, c.color, 2.1);
+	});
+
+	/* 分析标记 */
+	const notes = [];
+
+	if (a.roots || a.extrema || a.cross) {
+		active.forEach(c => {
+			if (a.roots) {
+				const rs = Numeric.roots(c.fn, x0, x1, 2200);
+				rs.forEach(x => {
+					const y = safeEval(c.fn, x);
+					if (y === null) return;
+					r.dot(vp.toSx(x), vp.toSy(y), 4.2, c.color, true);
+					notes.push({ k: "零点", x, y, color: c.color, expr: c.expr });
+				});
+			}
+			if (a.extrema) {
+				const es = Numeric.extrema(c.fn, x0, x1, 2200);
+				es.forEach(p => {
+					r.dot(vp.toSx(p.x), vp.toSy(p.y), 4.6, c.color, false);
+					notes.push({ k: p.kind === "max" ? "极大" : "极小", x: p.x, y: p.y, color: c.color, expr: c.expr });
+				});
+			}
+		});
+
+		if (a.cross && active.length >= 2) {
+			for (let i = 0; i < active.length; i++) {
+				for (let j = i + 1; j < active.length; j++) {
+					const xs = Numeric.intersections(active[i].fn, active[j].fn, x0, x1, 2200);
+					xs.forEach(x => {
+						const y = safeEval(active[i].fn, x);
+						if (y === null) return;
+						r.square(vp.toSx(x), vp.toSy(y), 7, active[i].color);
+						notes.push({
+							k: "交点", x, y, color: active[i].color,
+							expr: active[i].expr + " ∩ " + active[j].expr
+						});
+					});
+				}
+			}
+		}
+	}
+
+	/* 切线 */
+	const tanText = (a.tan || "").trim();
+	if (tanText) {
+		let tx = null;
+		try {
+			const tf = Expr.parseToFn(tanText);
+			tx = safeEval(tf, 0);
+		} catch (e) {
+			tx = null;
+		}
+		if (tx === null) {
+			const n = Number(tanText);
+			tx = Number.isFinite(n) ? n : null;
+		}
+		if (tx !== null) {
+			active.forEach((c, i) => r.tangentLine(c.fn, tx, c.color, i));
+		}
+	}
+
+	/* 悬停竖线 + 读数 */
+	if (App.hover) {
+		const hx = App.hover.wx;
+		const sx = vp.toSx(hx);
+		const ctx = r.ctx;
+		ctx.save();
+		ctx.strokeStyle = cssVar("--text-faint");
+		ctx.globalAlpha = 0.5;
+		ctx.lineWidth = 1;
+		ctx.setLineDash([3, 4]);
+		ctx.beginPath();
+		ctx.moveTo(Math.round(sx) + 0.5, 0);
+		ctx.lineTo(Math.round(sx) + 0.5, vp.H);
+		ctx.stroke();
+		ctx.restore();
+
+		active.forEach(c => {
+			const y = safeEval(c.fn, hx);
+			if (y === null) return;
+			const sy = vp.toSy(y);
+			if (sy < -40 || sy > vp.H + 40) return;
+			r.dot(sx, sy, 3.2, c.color, false);
+		});
+	}
+
+	App.readout = notes;
+	renderReadout(notes);
+}
+
+function renderReadout(notes) {
+	const box = $("readout");
+	if (!notes || notes.length === 0) {
+		box.classList.remove("show");
+		box.textContent = "";
+		return;
+	}
+	box.classList.add("show");
+	box.textContent = "";
+
+	const max = 40;
+	notes.slice(0, max).forEach(n => {
+		const line = document.createElement("div");
+		const k = document.createElement("span");
+		k.className = "k";
+		k.textContent = n.k + " ";
+		const v = document.createElement("b");
+		v.textContent = "(" + fmtNum(n.x, 4) + ", " + fmtNum(n.y, 4) + ")";
+		line.appendChild(k);
+		line.appendChild(v);
+		box.appendChild(line);
+	});
+	if (notes.length > max) {
+		const more = document.createElement("div");
+		more.className = "k";
+		more.textContent = "另有 " + (notes.length - max) + " 项…";
+		box.appendChild(more);
+	}
+}
+
+/* ---------- 视图操作 ---------- */
+
+function autoFit() {
+	const active = App.curves.filter(c => c.visible && c.fn);
+	const vp = App.vp;
+
+	if (active.length === 0) {
+		vp.cx = 0; vp.cy = 0; vp.kx = 60; vp.ky = 60;
+		scheduleDraw();
+		return;
+	}
+
+	/* x 范围：以当前视野为基准，默认 ±10 */
+	const xa = -10, xb = 10;
+	let lo = Infinity, hi = -Infinity;
+
+	const N = 600;
+	for (let k = 0; k <= N; k++) {
+		const x = xa + (xb - xa) * k / N;
+		active.forEach(c => {
+			const y = safeEval(c.fn, x);
+			if (y === null) return;
+			if (Math.abs(y) > 1e5) return;
+			if (y < lo) lo = y;
+			if (y > hi) hi = y;
+		});
+	}
+
+	if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi - lo < 1e-9) {
+		lo = -10; hi = 10;
+	}
+
+	const padY = (hi - lo) * 0.14 || 1;
+	lo -= padY; hi += padY;
+
+	const wSpan = xb - xa, hSpan = hi - lo;
+	const cx = (xa + xb) / 2, cy = (lo + hi) / 2;
+
+	/* 等比缩放，取能同时容纳两向的比例 */
+	const kx = (vp.W * 0.9) / wSpan;
+	const ky = (vp.H * 0.9) / hSpan;
+	const k = Math.min(kx, ky);
+
+	vp.cx = cx;
+	vp.cy = cy;
+	vp.kx = clamp(k, 1e-4, 1e7);
+	vp.ky = vp.kx;
+	scheduleDraw();
+}
+
+function resetView() {
+	App.vp.cx = 0;
+	App.vp.cy = 0;
+	App.vp.kx = 60;
+	App.vp.ky = 60;
+	scheduleDraw();
+}
+
+/* ---------- 交互 ---------- */
+
+function bindCanvas() {
+	const canvas = $("board");
+	const vp = App.vp;
+
+	let dragging = false;
+	let lastX = 0, lastY = 0;
+	let moved = false;
+	let pinchDist = 0;
+
+	const pos = ev => {
+		const rect = canvas.getBoundingClientRect();
+		return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+	};
+
+	canvas.addEventListener("pointerdown", ev => {
+		if (ev.button !== 0 && ev.pointerType === "mouse") return;
+		canvas.setPointerCapture(ev.pointerId);
+		dragging = true;
+		moved = false;
+		const p = pos(ev);
+		lastX = p.x; lastY = p.y;
+		canvas.classList.add("panning");
+		$("hud").classList.remove("show");
+	});
+
+	canvas.addEventListener("pointermove", ev => {
+		const p = pos(ev);
+
+		if (dragging) {
+			const dx = p.x - lastX, dy = p.y - lastY;
+			if (Math.abs(dx) + Math.abs(dy) > 0) moved = true;
+			lastX = p.x; lastY = p.y;
+			vp.panBy(dx, dy);
+			App.hover = null;
+			scheduleDraw();
+			return;
+		}
+
+		if (ev.pointerType === "mouse") {
+			App.hover = { wx: vp.toWx(p.x) };
+			updateHud(p);
+			scheduleDraw();
+		}
+	});
+
+	const endDrag = ev => {
+		if (!dragging) return;
+		dragging = false;
+		canvas.classList.remove("panning");
+		try { canvas.releasePointerCapture(ev.pointerId); } catch (e) { void e; }
+		void moved;
+	};
+
+	canvas.addEventListener("pointerup", endDrag);
+	canvas.addEventListener("pointercancel", endDrag);
+	canvas.addEventListener("pointerleave", () => {
+		App.hover = null;
+		$("hud").classList.remove("show");
+		scheduleDraw();
+	});
+
+	/* 滚轮缩放 */
+	canvas.addEventListener("wheel", ev => {
+		ev.preventDefault();
+		const p = pos(ev);
+		const unit = ev.deltaMode === 1 ? 16 : (ev.deltaMode === 2 ? vp.H : 1);
+		const dy = ev.deltaY * unit;
+		const factor = Math.exp(-dy * 0.0016);
+		vp.zoomAt(p.x, p.y, clamp(factor, 0.2, 5));
+		App.hover = { wx: vp.toWx(p.x) };
+		updateHud(p);
+		scheduleDraw();
+	}, { passive: false });
+
+	/* 双指捏合 */
+	canvas.addEventListener("touchmove", ev => {
+		if (ev.touches.length !== 2) return;
+		ev.preventDefault();
+		const r = canvas.getBoundingClientRect();
+		const t0 = ev.touches[0], t1 = ev.touches[1];
+		const d = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+		const mx = (t0.clientX + t1.clientX) / 2 - r.left;
+		const my = (t0.clientY + t1.clientY) / 2 - r.top;
+		if (pinchDist > 0) {
+			vp.zoomAt(mx, my, clamp(d / pinchDist, 0.5, 2));
+			scheduleDraw();
+		}
+		pinchDist = d;
+		dragging = false;
+	}, { passive: false });
+
+	canvas.addEventListener("touchend", () => { pinchDist = 0; });
+}
+
+function updateHud(p) {
+	const vp = App.vp;
+	const wx = vp.toWx(p.x);
+	const hud = $("hud");
+	const active = App.curves.filter(c => c.visible && c.fn);
+
+	let text = "x = " + fmtNum(wx, 4);
+	const first = active[0];
+	if (first) {
+		const y = safeEval(first.fn, wx);
+		text += "   y = " + (y === null ? "—" : fmtNum(y, 4));
+	}
+	hud.textContent = text;
+	hud.classList.add("show");
+}
+
+/* ---------- 主题 ---------- */
+
+function applyTheme(t) {
+	document.documentElement.dataset.theme = t;
+	$("btnTheme").textContent = t === "dark" ? "浅色" : "深色";
+	try { localStorage.setItem("fp.theme", t); } catch (e) { void e; }
+	/* 曲线颜色跟随主题 */
+	const p = palette();
+	App.curves.forEach((c, i) => { c.color = p[i % p.length]; });
+	renderCurveList();
+	scheduleDraw();
+}
+
+function initTheme() {
+	let t = null;
+	try { t = localStorage.getItem("fp.theme"); } catch (e) { void e; }
+	if (t !== "dark" && t !== "light") {
+		t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+	}
+	document.documentElement.dataset.theme = t;
+	$("btnTheme").textContent = t === "dark" ? "浅色" : "深色";
+}
+
+/* ---------- 导出 ---------- */
+
+function exportPng() {
+	const src = $("board");
+	const scale = 2;
+	const out = document.createElement("canvas");
+	out.width = src.width * scale;
+	out.height = src.height * scale;
+	const ctx = out.getContext("2d");
+
+	ctx.fillStyle = cssVar("--bg-canvas");
+	ctx.fillRect(0, 0, out.width, out.height);
+	ctx.imageSmoothingEnabled = true;
+	ctx.drawImage(src, 0, 0, out.width, out.height);
+
+	const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+	out.toBlob(blob => {
+		if (!blob) return;
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "function-plot-" + stamp + ".png";
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 2000);
+	}, "image/png");
+}
+
+/* ============================================================
+   9. 启动
+   ============================================================ */
+function bindUi() {
+	$("btnAdd").addEventListener("click", () => {
+		const c = addCurve("", true);
+		if (!c) return;
+		const rows = $("curveList").querySelectorAll(".curve input");
+		const last = rows[rows.length - 1];
+		if (last) { last.focus(); last.select(); }
+	});
+
+	$("btnFit").addEventListener("click", autoFit);
+	$("btnReset").addEventListener("click", resetView);
+	$("btnPng").addEventListener("click", exportPng);
+	$("btnTheme").addEventListener("click", () => {
+		applyTheme(currentTheme() === "dark" ? "light" : "dark");
+	});
+
+	$("btnIn").addEventListener("click", () => {
+		App.vp.zoomAt(App.vp.W / 2, App.vp.H / 2, 1.25);
+		scheduleDraw();
+	});
+	$("btnOut").addEventListener("click", () => {
+		App.vp.zoomAt(App.vp.W / 2, App.vp.H / 2, 0.8);
+		scheduleDraw();
+	});
+
+	/* 分析开关 */
+	const map = { anRoots: "roots", anExtrema: "extrema", anCross: "cross", anDeriv: "deriv" };
+	Object.keys(map).forEach(id => {
+		const el = $(id);
+		el.addEventListener("change", () => {
+			App.analysis[map[id]] = el.checked;
+			scheduleDraw();
+		});
+	});
+
+	const tan = $("anTan");
+	let tanTimer = 0;
+	tan.addEventListener("input", () => {
+		clearTimeout(tanTimer);
+		tanTimer = setTimeout(() => {
+			App.analysis.tan = tan.value;
+			scheduleDraw();
+		}, 260);
+	});
+
+	/* 快捷键 */
+	window.addEventListener("keydown", ev => {
+		const tag = (ev.target && ev.target.tagName) || "";
+		if (tag === "INPUT" || tag === "TEXTAREA") return;
+		if (ev.key === "f" || ev.key === "F") { autoFit(); }
+		else if (ev.key === "r" || ev.key === "R") { resetView(); }
+		else if (ev.key === "+" || ev.key === "=") { App.vp.zoomAt(App.vp.W / 2, App.vp.H / 2, 1.25); scheduleDraw(); }
+		else if (ev.key === "-" || ev.key === "_") { App.vp.zoomAt(App.vp.W / 2, App.vp.H / 2, 0.8); scheduleDraw(); }
+	});
+}
+
+function boot() {
+	const canvas = $("board");
+	const vp = App.vp;
+	const renderer = new Renderer(canvas, vp);
+	App.renderer = renderer;
+
+	renderer.resize();
+	bindCanvas();
+	bindUi();
+
+	/* 默认示例：一条能同时展示零点、极值、导数的三次曲线 */
+	addCurve("x^3/3 - x", true);
+	$("anRoots").checked = true;
+	$("anExtrema").checked = true;
+	App.analysis.roots = true;
+	App.analysis.extrema = true;
+
+	resetView();
+
+	/* 尺寸变化 */
+	let ro = null;
+	if (typeof ResizeObserver !== "undefined") {
+		ro = new ResizeObserver(() => {
+			renderer.resize();
+			scheduleDraw();
+		});
+		ro.observe($("stage"));
+	} else {
+		window.addEventListener("resize", () => {
+			renderer.resize();
+			scheduleDraw();
+		});
+	}
+
+	/* 主题跟随系统（用户未手动选择时） */
+	if (window.matchMedia) {
+		const mq = window.matchMedia("(prefers-color-scheme: dark)");
+		const onChange = () => {
+			let saved = null;
+			try { saved = localStorage.getItem("fp.theme"); } catch (e) { void e; }
+			if (saved === "dark" || saved === "light") return;
+			document.documentElement.dataset.theme = mq.matches ? "dark" : "light";
+			$("btnTheme").textContent = mq.matches ? "浅色" : "深色";
+			const p = palette();
+			App.curves.forEach((c, i) => { c.color = p[i % p.length]; });
+			renderCurveList();
+			scheduleDraw();
+		};
+		if (mq.addEventListener) mq.addEventListener("change", onChange);
+		else if (mq.addListener) mq.addListener(onChange);
+	}
+
+	scheduleDraw();
+}
+
+/* ---------- 全局错误可见化：宁可显示错误，也不要白屏 ---------- */
+(function guard() {
+	const report = msg => {
+		let bar = document.getElementById("fpFatal");
+		if (!bar) {
+			bar = document.createElement("div");
+			bar.id = "fpFatal";
+			bar.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;padding:10px 14px;"
+				+ "background:#b91c1c;color:#fff;font:12px/1.5 ui-monospace,Menlo,monospace;"
+				+ "white-space:pre-wrap;max-height:45vh;overflow:auto";
+			document.body.appendChild(bar);
+		}
+		bar.textContent = "函数画板启动失败：\n" + msg;
+	};
+	window.addEventListener("error", ev => {
+		report((ev.message || "未知错误") + "\n" + (ev.filename || "") + ":" + (ev.lineno || 0));
+	});
+	window.addEventListener("unhandledrejection", ev => {
+		const r = ev.reason;
+		report(r && r.stack ? r.stack : String(r));
+	});
+	window.__fpReport = report;
+})();
+
+function safeBoot() {
+	try {
+		initTheme();
+		boot();
+	} catch (e) {
+		if (window.__fpReport) window.__fpReport(e && e.stack ? e.stack : String(e));
+		else console.error(e);
+	}
+}
+
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", safeBoot);
+} else {
+	safeBoot();
+}
+</script>
+</body>
+</html>
