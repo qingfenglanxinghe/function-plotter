@@ -309,7 +309,32 @@ group("文档示例均可解析");
 });
 
 /* ============================================================
-   6. 数值格式化
+   6. 错误码
+   引擎不抛中文文本，而是抛错误码 + 参数，由界面按当前语言翻译。
+   这里锁定码值，避免以后改实现时翻译静默失效。
+   ============================================================ */
+group("错误码（供界面翻译）");
+
+[
+	["", "errEmpty"],
+	["sin x", "errNeedParen"],
+	["abc", "errUnknownVar"],
+	["x+", "errIncomplete"],
+	["x@2", "errBadChar"],
+	["(x))", "errTrailing"],
+	["(x+1", "errMissingParen"]
+].forEach(pair => {
+	const src = pair[0], expect = pair[1];
+	let got = null, params = null;
+	try { Expr.parseToFn(src); } catch (e) { got = e.code || null; params = e.params || null; }
+	ok("错误码 " + JSON.stringify(src) + " → " + expect, got === expect, "实得 " + got);
+	if (got === "errUnknownVar") {
+		ok("未知变量错误携带变量名", params && params.v === "a", JSON.stringify(params));
+	}
+});
+
+/* ============================================================
+   7. 数值格式化
    ============================================================ */
 group("刻度格式化");
 {

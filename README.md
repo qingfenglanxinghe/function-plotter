@@ -36,6 +36,7 @@ Root-finding rejects poles: after bisection converges, a point is discarded if t
 
 ### Interface
 
+- Interface languages: English, Simplified Chinese, Traditional Chinese. The initial language follows the system locale; a manual choice is remembered
 - Light and dark themes, following the system preference by default
 - PNG export at 2× device pixel ratio
 - Responsive layout, including phone-width viewports

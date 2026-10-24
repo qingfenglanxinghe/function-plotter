@@ -129,6 +129,24 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,9
 }
 .tbtn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff}
 
+/* 语言切换 */
+.lang-wrap{position:relative;flex:0 0 auto}
+.lang-menu{
+	position:absolute;right:0;top:calc(100% + 6px);
+	min-width:136px;padding:5px;
+	border:1px solid var(--line);border-radius:8px;
+	background:var(--surface);box-shadow:var(--shadow-lg);
+	display:none;flex-direction:column;gap:1px;z-index:50;
+}
+.lang-menu.open{display:flex}
+.lang-menu button{
+	display:block;width:100%;text-align:left;
+	padding:6px 9px;border:0;background:transparent;
+	border-radius:6px;font-size:12.5px;color:var(--muted);
+}
+.lang-menu button:hover{background:var(--hover);color:var(--text)}
+.lang-menu button.on{color:var(--accent);font-weight:600}
+
 .main{flex:1;display:flex;min-height:0}
 
 /* ============================================================
@@ -247,7 +265,7 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,9
 .check.off input{cursor:not-allowed}
 
 .tanrow{display:flex;align-items:center;gap:8px;margin-top:10px}
-.tanrow label{flex:0 0 54px;font-size:12.5px;color:var(--muted)}
+.tanrow label{flex:0 0 auto;white-space:nowrap;font-size:12.5px;color:var(--muted)}
 .tanrow input{
 	flex:1;min-width:0;height:30px;
 	border:1px solid var(--line);border-radius:6px;background:var(--surface);
@@ -295,7 +313,7 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,9
 	border:1px solid var(--line);
 	box-shadow:var(--shadow);
 	-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-	text-align:center;max-width:360px;
+	text-align:center;max-width:420px;
 }
 .empty .em-t{font-size:14px;font-weight:600;color:var(--text)}
 .empty .em-s{font-size:12.5px;color:var(--muted);line-height:1.95}
@@ -390,9 +408,11 @@ html[data-theme="dark"] .hud{background:rgba(230,234,240,.94);color:#1f2733}
 	.readout{display:none!important}
 	.legend{max-width:150px;font-size:11px;right:10px;top:10px}
 	.topbar{padding:0 10px;gap:6px}
-	.brand{font-size:14px}
+	/* 窄屏下品牌文字会让顶栏按钮贴边，只保留 logo */
+	.brand .name{display:none}
 	.brand .sub{display:none}
-	.tbtn{padding:0 9px;font-size:12px}
+	.tbtn{padding:0 8px;font-size:12px}
+	.lang-menu{min-width:124px}
 }
 @media (max-width:420px){
 	.hud{font-size:11px;left:10px;bottom:10px}
@@ -404,36 +424,46 @@ html[data-theme="dark"] .hud{background:rgba(230,234,240,.94);color:#1f2733}
 <body>
 <div class="app">
 	<header class="topbar">
-		<div class="brand"><span class="dot"></span>函数画板<span class="sub">function plotter</span></div>
+		<div class="brand">
+			<span class="dot"></span><span class="name" data-i18n="appName">Function Plotter</span><span class="sub" data-i18n="appSub"></span>
+		</div>
 		<div class="spacer"></div>
-		<button class="tbtn" id="btnTheme" title="切换深浅色">深色</button>
-		<button class="tbtn" id="btnFit" title="自适应视图 (F)">自适应</button>
-		<button class="tbtn primary" id="btnPng" title="导出 PNG">导出图片</button>
+		<div class="lang-wrap">
+			<button class="tbtn" id="btnLang" title="Language">EN</button>
+			<div class="lang-menu" id="langMenu">
+				<button data-lang="en">English</button>
+				<button data-lang="zhHans">简体中文</button>
+				<button data-lang="zhHant">繁體中文</button>
+			</div>
+		</div>
+		<button class="tbtn" id="btnTheme" data-i18n="themeDark" data-i18n-title="themeToggle">Dark</button>
+		<button class="tbtn" id="btnFit" data-i18n="fit" data-i18n-title="fitTitle">Fit</button>
+		<button class="tbtn primary" id="btnPng" data-i18n="export" data-i18n-title="exportTitle">Export</button>
 	</header>
 	<main class="main">
 		<aside class="sidebar">
 			<section class="sec curves-sec">
 				<div class="sec-h">
-					<span class="ttl">函数</span>
-					<span class="hint">回车绘制</span>
-					<button class="add" id="btnAdd" title="添加函数">+</button>
+					<span class="ttl" data-i18n="secFunctions">Functions</span>
+					<span class="hint" data-i18n="hintEnter">Press Enter</span>
+					<button class="add" id="btnAdd" data-i18n-title="addCurve">+</button>
 				</div>
 				<div id="curveList"></div>
 			</section>
 			<section class="sec analysis-sec">
 				<div class="sec-h">
-					<span class="ttl">图像分析</span>
-					<span class="hint">即时计算</span>
+					<span class="ttl" data-i18n="secAnalysis">Graph analysis</span>
+					<span class="hint" data-i18n="hintLive">Live</span>
 				</div>
 				<div class="an-grid">
-					<label class="check"><input type="checkbox" id="anRoots"><span>零点</span></label>
-					<label class="check"><input type="checkbox" id="anExtrema"><span>极值点</span></label>
-					<label class="check"><input type="checkbox" id="anCross"><span>曲线交点</span></label>
-					<label class="check"><input type="checkbox" id="anDeriv"><span>导函数曲线</span></label>
+					<label class="check"><input type="checkbox" id="anRoots"><span data-i18n="anRoots">Roots</span></label>
+					<label class="check"><input type="checkbox" id="anExtrema"><span data-i18n="anExtrema">Extrema</span></label>
+					<label class="check"><input type="checkbox" id="anCross"><span data-i18n="anCross">Crossings</span></label>
+					<label class="check"><input type="checkbox" id="anDeriv"><span data-i18n="anDeriv">Derivative</span></label>
 				</div>
 				<div class="tanrow">
-					<label for="anTan">切线 x₀</label>
-					<input type="text" id="anTan" placeholder="如 1.5，留空关闭" spellcheck="false">
+					<label for="anTan" data-i18n="tanLabel">Tangent</label>
+					<input type="text" id="anTan" data-i18n-ph="tanPlaceholder" placeholder="x₀, empty to hide" spellcheck="false">
 				</div>
 				<div class="readout" id="readout"></div>
 			</section>
@@ -442,16 +472,16 @@ html[data-theme="dark"] .hud{background:rgba(230,234,240,.94);color:#1f2733}
 			<canvas id="board"></canvas>
 			<div class="empty" id="empty">
 				<div class="em-box">
-					<div class="em-t">还没有可绘制的函数</div>
-					<div class="em-s">输入表达式开始绘图，例如 <code>sin(x)</code> <code>x^2/4-1</code> <code>1/x</code></div>
+					<div class="em-t" data-i18n="emptyTitle">No functions yet</div>
+					<div class="em-s"><span data-i18n="emptyBody">Enter an expression to start, e.g.</span> <code>sin(x)</code> <code>x^2/4-1</code> <code>1/x</code></div>
 				</div>
 			</div>
 			<div class="legend hide" id="legend"></div>
 			<div class="hud" id="hud"></div>
 			<div class="stage-tools">
-				<button class="fbtn" id="btnIn" title="放大">+</button>
-				<button class="fbtn" id="btnOut" title="缩小">−</button>
-				<button class="fbtn" id="btnReset" title="回到原点">⌂</button>
+				<button class="fbtn" id="btnIn" data-i18n-title="zoomIn">+</button>
+				<button class="fbtn" id="btnOut" data-i18n-title="zoomOut">−</button>
+				<button class="fbtn" id="btnReset" data-i18n-title="resetView">⌂</button>
 			</div>
 		</div>
 	</main>
@@ -464,6 +494,229 @@ html[data-theme="dark"] .hud{background:rgba(230,234,240,.94);color:#1f2733}
    一个只做「函数图像 + 图像分析」的画板。零依赖，单文件，可直接静态托管。
    模块顺序：表达式引擎 → 视口 → 采样 → 数值分析 → 渲染 → 状态
    ========================================================================== */
+
+/* ============================================================
+   0. 界面语言
+   默认跟随系统语言，无法判定时用英文。选择结果持久化。
+   引擎抛出的错误同样走这里的字典，避免英文界面里出现中文报错。
+   ============================================================ */
+
+const LANGS = ["en", "zhHans", "zhHant"];
+const LANG_TAG = { en: "EN", zhHans: "简", zhHant: "繁" };
+const LANG_KEY = "fp.lang";
+
+const I18N = {
+	en: {
+		appName: "Function Plotter",
+		appSub: "",
+		themeDark: "Dark",
+		themeLight: "Light",
+		themeToggle: "Toggle light / dark theme",
+		fit: "Fit",
+		fitTitle: "Fit view to curves (F)",
+		export: "Export",
+		exportTitle: "Export as PNG",
+		secFunctions: "Functions",
+		hintEnter: "Press Enter",
+		addCurve: "Add a function",
+		secAnalysis: "Graph analysis",
+		hintLive: "Live",
+		anRoots: "Roots",
+		anExtrema: "Extrema",
+		anCross: "Crossings",
+		anDeriv: "Derivative",
+		tanLabel: "Tangent",
+		tanPlaceholder: "x₀, empty to hide",
+		emptyTitle: "No functions yet",
+		emptyBody: "Enter an expression to start, e.g.",
+		zoomIn: "Zoom in",
+		zoomOut: "Zoom out",
+		resetView: "Reset view",
+		curvePlaceholder: "e.g. sin(x), x^2/4-1, 1/x",
+		deleteCurve: "Remove this curve",
+		toggleCurve: "Show / hide",
+		roRoot: "root",
+		roMax: "max",
+		roMin: "min",
+		roCross: "crossing",
+		roMore: "{n} more",
+		errEmpty: "Expression is empty",
+		errIncomplete: "Incomplete expression",
+		errBadChar: "Unrecognised character “{ch}”",
+		errUnknownVar: "Unknown variable “{v}” — only x is available",
+		errNeedParen: "{fn} requires parentheses, e.g. {fn}(x)",
+		errMissingParen: "Missing closing parenthesis",
+		errUnexpected: "Unexpected symbol “{tok}”",
+		errTrailing: "Trailing symbol “{tok}”",
+		errUnknownFunc: "Unknown function “{fn}”",
+		errTooManyArgs: "Too many arguments (max 3)",
+		errInternal: "Internal error: unknown node",
+		fatalPrefix: "Function Plotter failed to start:"
+	},
+	zhHans: {
+		appName: "函数画板",
+		appSub: "function plotter",
+		themeDark: "深色",
+		themeLight: "浅色",
+		themeToggle: "切换深色 / 浅色",
+		fit: "自适应",
+		fitTitle: "自适应视图（F）",
+		export: "导出图片",
+		exportTitle: "导出为 PNG",
+		secFunctions: "函数",
+		hintEnter: "回车绘制",
+		addCurve: "添加函数",
+		secAnalysis: "图像分析",
+		hintLive: "即时计算",
+		anRoots: "零点",
+		anExtrema: "极值点",
+		anCross: "曲线交点",
+		anDeriv: "导函数曲线",
+		tanLabel: "切线 x₀",
+		tanPlaceholder: "如 1.5，留空关闭",
+		emptyTitle: "还没有可绘制的函数",
+		emptyBody: "输入表达式开始绘图，例如",
+		zoomIn: "放大",
+		zoomOut: "缩小",
+		resetView: "回到原点",
+		curvePlaceholder: "例如 sin(x)、x^2/4-1、1/x",
+		deleteCurve: "删除这条曲线",
+		toggleCurve: "显示 / 隐藏",
+		roRoot: "零点",
+		roMax: "极大",
+		roMin: "极小",
+		roCross: "交点",
+		roMore: "另有 {n} 项…",
+		errEmpty: "表达式为空",
+		errIncomplete: "表达式不完整",
+		errBadChar: "无法识别的字符 “{ch}”",
+		errUnknownVar: "未知变量 “{v}”，只能用 x",
+		errNeedParen: "{fn} 后面需要括号，应写成 {fn}(x)",
+		errMissingParen: "缺少右括号",
+		errUnexpected: "意外的符号 “{tok}”",
+		errTrailing: "多余的符号 “{tok}”",
+		errUnknownFunc: "未知函数 “{fn}”",
+		errTooManyArgs: "参数过多（最多 3 个）",
+		errInternal: "内部错误：未知节点",
+		fatalPrefix: "函数画板启动失败："
+	},
+	zhHant: {
+		appName: "函數畫板",
+		appSub: "function plotter",
+		themeDark: "深色",
+		themeLight: "淺色",
+		themeToggle: "切換深色 / 淺色",
+		fit: "自適應",
+		fitTitle: "自適應視圖（F）",
+		export: "匯出圖片",
+		exportTitle: "匯出為 PNG",
+		secFunctions: "函數",
+		hintEnter: "Enter 繪製",
+		addCurve: "新增函數",
+		secAnalysis: "圖像分析",
+		hintLive: "即時計算",
+		anRoots: "零點",
+		anExtrema: "極值點",
+		anCross: "曲線交點",
+		anDeriv: "導函數曲線",
+		tanLabel: "切線 x₀",
+		tanPlaceholder: "如 1.5，留空關閉",
+		emptyTitle: "尚無可繪製的函數",
+		emptyBody: "輸入表達式開始繪圖，例如",
+		zoomIn: "放大",
+		zoomOut: "縮小",
+		resetView: "回到原點",
+		curvePlaceholder: "例如 sin(x)、x^2/4-1、1/x",
+		deleteCurve: "刪除這條曲線",
+		toggleCurve: "顯示 / 隱藏",
+		roRoot: "零點",
+		roMax: "極大",
+		roMin: "極小",
+		roCross: "交點",
+		roMore: "另有 {n} 項…",
+		errEmpty: "表達式為空",
+		errIncomplete: "表達式不完整",
+		errBadChar: "無法辨識的字元 “{ch}”",
+		errUnknownVar: "未知變數 “{v}”，僅能使用 x",
+		errNeedParen: "{fn} 後方需要括號，應寫成 {fn}(x)",
+		errMissingParen: "缺少右括號",
+		errUnexpected: "意外的符號 “{tok}”",
+		errTrailing: "多餘的符號 “{tok}”",
+		errUnknownFunc: "未知函數 “{fn}”",
+		errTooManyArgs: "參數過多（最多 3 個）",
+		errInternal: "內部錯誤：未知節點",
+		fatalPrefix: "函數畫板啟動失敗："
+	}
+};
+
+let LANG = "en";
+
+/** 安全存储：file:// 与隐私模式下 localStorage 可能抛异常 */
+const Store = {
+	get(k) {
+		try { return localStorage.getItem(k); } catch (e) { return null; }
+	},
+	set(k, v) {
+		try { localStorage.setItem(k, v); } catch (e) { void e; }
+	}
+};
+
+function t(key, vars) {
+	const table = I18N[LANG] || I18N.en;
+	let s = table[key];
+	if (s === undefined) s = I18N.en[key];
+	if (s === undefined) s = key;
+	if (vars) {
+		s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
+	}
+	return s;
+}
+
+function detectLang() {
+	const saved = Store.get(LANG_KEY);
+	if (saved && LANGS.indexOf(saved) >= 0) return saved;
+	const nav = String(navigator.language || "en").toLowerCase();
+	if (nav.indexOf("zh") === 0) {
+		return /hant|tw|hk|mo/.test(nav) ? "zhHant" : "zhHans";
+	}
+	return "en";
+}
+
+/** 应用语言到静态文案与动态内容 */
+function applyLang(lang, persist) {
+	LANG = LANGS.indexOf(lang) >= 0 ? lang : "en";
+	document.documentElement.lang =
+		LANG === "zhHans" ? "zh-CN" : (LANG === "zhHant" ? "zh-TW" : "en");
+
+	document.querySelectorAll("[data-i18n]").forEach(el => {
+		el.textContent = t(el.getAttribute("data-i18n"));
+	});
+	document.querySelectorAll("[data-i18n-title]").forEach(el => {
+		el.title = t(el.getAttribute("data-i18n-title"));
+	});
+	document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+		el.placeholder = t(el.getAttribute("data-i18n-ph"));
+	});
+
+	const btn = document.getElementById("btnLang");
+	if (btn) btn.textContent = LANG_TAG[LANG];
+
+	document.querySelectorAll("#langMenu button").forEach(b => {
+		b.classList.toggle("on", b.getAttribute("data-lang") === LANG);
+	});
+
+	updateThemeLabel();
+	document.title = t("appName");
+
+	/* 依赖语言的动态内容需要重建 */
+	if (App && App.curves && App.curves.length >= 0 && App.renderer) {
+		renderCurveList();
+		if (App.readout) renderReadout(App.readout);
+		scheduleDraw();
+	}
+
+	if (persist) Store.set(LANG_KEY, LANG);
+}
 
 /* ============================================================
    1. 数学常量与函数
@@ -498,6 +751,14 @@ const NAMES = Object.keys(FUNCS).concat(Object.keys(CONSTS))
    ============================================================ */
 
 const Expr = (() => {
+
+	/** 抛出带错误码的异常，文案由 UI 层按当前语言翻译 */
+	function fail(code, params) {
+		const e = new Error(code);
+		e.code = code;
+		e.params = params || {};
+		return e;
+	}
 
 	/** 归一化：全角/数学符号 → ASCII，使公式可以直接粘贴 */
 	function normalize(src) {
@@ -567,7 +828,7 @@ const Expr = (() => {
 
 			if ("+-*/^(),".indexOf(c) >= 0) { out.push({ t: c }); i++; continue; }
 
-			throw new Error("无法识别的字符 “" + c + "”");
+			throw fail("errBadChar", { ch: c });
 		}
 
 		/* 隐式乘法：(x+1)(x-1)  2x  3sin(x)  x(x+2) */
@@ -625,34 +886,34 @@ const Expr = (() => {
 		}
 		function atom() {
 			const tk = peek();
-			if (!tk) throw new Error("表达式不完整");
+			if (!tk) throw fail("errIncomplete");
 
 			if (tk.t === "num") { i++; return { type: "num", v: tk.v }; }
 			if (tk.t === "const") { i++; return { type: "num", v: CONSTS[tk.v] }; }
 			if (tk.t === "var") {
 				i++;
-				if (tk.v !== "x") throw new Error("未知变量 “" + tk.v + "”，只能用 x");
+				if (tk.v !== "x") throw fail("errUnknownVar", { v: tk.v });
 				return { type: "var" };
 			}
 			if (tk.t === "func") {
 				const nm = tokens[i++].v;
-				if (!eat("(")) throw new Error(nm + " 后面需要括号，应写成 " + nm + "(x)");
+				if (!eat("(")) throw fail("errNeedParen", { fn: nm });
 				const args = [addsub()];
 				while (eat(",")) args.push(addsub());
-				if (!eat(")")) throw new Error("缺少右括号");
+				if (!eat(")")) throw fail("errMissingParen");
 				return { type: "call", name: nm, args };
 			}
 			if (tk.t === "(") {
 				i++;
 				const e = addsub();
-				if (!eat(")")) throw new Error("缺少右括号");
+				if (!eat(")")) throw fail("errMissingParen");
 				return e;
 			}
-			throw new Error("意外的符号 “" + tk.t + "”");
+			throw fail("errUnexpected", { tok: tk.t });
 		}
 
 		const ast = addsub();
-		if (i < tokens.length) throw new Error("多余的符号 “" + tokens[i].t + "”");
+		if (i < tokens.length) throw fail("errTrailing", { tok: tokens[i].t });
 		return ast;
 	}
 
@@ -674,21 +935,21 @@ const Expr = (() => {
 			}
 			case "call": {
 				const f = FUNCS[ast.name];
-				if (!f) throw new Error("未知函数 “" + ast.name + "”");
+				if (!f) throw fail("errUnknownFunc", { fn: ast.name });
 				const A = ast.args.map(compile);
 				if (A.length === 1) { const a = A[0]; return x => f(a(x)); }
 				if (A.length === 2) { const a = A[0], b = A[1]; return x => f(a(x), b(x)); }
 				if (A.length === 3) { const a = A[0], b = A[1], c = A[2]; return x => f(a(x), b(x), c(x)); }
-				throw new Error("参数过多（最多 3 个）");
+				throw fail("errTooManyArgs");
 			}
 		}
-		throw new Error("内部错误：未知节点");
+		throw fail("errInternal");
 	}
 
 	/** 编译表达式字符串为 (x) => number */
 	function parseToFn(src) {
 		const text = String(src == null ? "" : src).trim();
-		if (!text) throw new Error("表达式为空");
+		if (!text) throw fail("errEmpty");
 		return compile(parse(tokenize(text)));
 	}
 
@@ -929,6 +1190,12 @@ const PALETTE = {
 
 function currentTheme() {
 	return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+/** 主题按钮文案随当前主题与语言变化 */
+function updateThemeLabel() {
+	const el = document.getElementById("btnTheme");
+	if (el) el.textContent = currentTheme() === "dark" ? t("themeLight") : t("themeDark");
 }
 function palette() {
 	return PALETTE[currentTheme()];
@@ -1290,7 +1557,8 @@ function recompile(c) {
 		c.error = "";
 	} catch (e) {
 		c.fn = null;
-		c.error = e && e.message ? e.message : String(e);
+		/* 引擎抛的是错误码，这里按当前语言翻译 */
+		c.error = e && e.code ? t(e.code, e.params) : (e && e.message ? e.message : String(e));
 	}
 }
 
@@ -1307,7 +1575,7 @@ function renderCurveList() {
 		sw.className = "swatch";
 		sw.style.background = c.color;
 		sw.style.color = c.color;
-		sw.title = "显示 / 隐藏";
+		sw.title = t("toggleCurve");
 		sw.style.cursor = "pointer";
 		sw.addEventListener("click", () => {
 			c.visible = !c.visible;
@@ -1324,7 +1592,7 @@ function renderCurveList() {
 		input.spellcheck = false;
 		input.autocapitalize = "off";
 		input.autocomplete = "off";
-		input.placeholder = "例如 sin(x)、x^2/4-1、1/x";
+		input.placeholder = t("curvePlaceholder");
 		input.addEventListener("input", () => {
 			c.expr = input.value;
 			recompile(c);
@@ -1341,7 +1609,7 @@ function renderCurveList() {
 		const del = document.createElement("button");
 		del.className = "iconbtn del";
 		del.textContent = "✕";
-		del.title = "删除这条曲线";
+		del.title = t("deleteCurve");
 		del.disabled = App.curves.length <= 1;
 		del.addEventListener("click", () => removeCurve(c.id));
 
@@ -1446,10 +1714,9 @@ function draw() {
 	});
 
 	/* 分析标记 */
-	let notes = App.readout || [];
+	let notes = [];
 
 	if (!skipAnalysis && (a.roots || a.extrema || a.cross)) {
-		notes = [];
 		active.forEach(c => {
 			if (a.roots) {
 				const rs = Numeric.roots(c.fn, x0, x1, 2200);
@@ -1457,14 +1724,14 @@ function draw() {
 					const y = safeEval(c.fn, x);
 					if (y === null) return;
 					r.dot(vp.toSx(x), vp.toSy(y), 4.2, c.color, true);
-					notes.push({ k: "零点", x, y, color: c.color, expr: c.expr });
+					notes.push({ kKey: "roRoot", x, y, color: c.color, expr: c.expr });
 				});
 			}
 			if (a.extrema) {
 				const es = Numeric.extrema(c.fn, x0, x1, 2200);
 				es.forEach(p => {
 					r.dot(vp.toSx(p.x), vp.toSy(p.y), 4.6, c.color, false);
-					notes.push({ k: p.kind === "max" ? "极大" : "极小", x: p.x, y: p.y, color: c.color, expr: c.expr });
+					notes.push({ kKey: p.kind === "max" ? "roMax" : "roMin", x: p.x, y: p.y, color: c.color, expr: c.expr });
 				});
 			}
 		});
@@ -1478,7 +1745,7 @@ function draw() {
 						if (y === null) return;
 						r.square(vp.toSx(x), vp.toSy(y), 7, active[i].color);
 						notes.push({
-							k: "交点", x, y, color: active[i].color,
+							kKey: "roCross", x, y, color: active[i].color,
 							expr: active[i].expr + " ∩ " + active[j].expr
 						});
 					});
@@ -1531,8 +1798,11 @@ function draw() {
 		});
 	}
 
-	App.readout = notes;
-	if (!skipAnalysis) renderReadout(notes);
+	/* 读数与标记同步：交互中不更新，避免抖动；无任何分析开启时清空 */
+	if (!skipAnalysis) {
+		App.readout = notes;
+		renderReadout(notes);
+	}
 
 	/* 空状态：仅在曲线数量变化时才碰 DOM，避免每帧切换 class */
 	if (App._activeCount !== active.length) {
@@ -1565,7 +1835,7 @@ function renderReadout(notes) {
 		const line = document.createElement("div");
 		const k = document.createElement("span");
 		k.className = "k";
-		k.textContent = n.k + " ";
+		k.textContent = t(n.kKey) + " ";
 		const v = document.createElement("b");
 		v.textContent = "(" + fmtNum(n.x, 4) + ", " + fmtNum(n.y, 4) + ")";
 		line.appendChild(k);
@@ -1575,7 +1845,7 @@ function renderReadout(notes) {
 	if (notes.length > max) {
 		const more = document.createElement("div");
 		more.className = "k";
-		more.textContent = "另有 " + (notes.length - max) + " 项…";
+		more.textContent = t("roMore", { n: notes.length - max });
 		box.appendChild(more);
 	}
 }
@@ -1755,10 +2025,10 @@ function updateHud(p) {
 
 /* ---------- 主题 ---------- */
 
-function applyTheme(t) {
-	document.documentElement.dataset.theme = t;
-	$("btnTheme").textContent = t === "dark" ? "浅色" : "深色";
-	try { localStorage.setItem("fp.theme", t); } catch (e) { void e; }
+function applyTheme(theme) {
+	document.documentElement.dataset.theme = theme;
+	updateThemeLabel();
+	Store.set("fp.theme", theme);
 	/* 曲线颜色跟随主题 */
 	const p = palette();
 	App.curves.forEach((c, i) => { c.color = p[i % p.length]; });
@@ -1767,13 +2037,11 @@ function applyTheme(t) {
 }
 
 function initTheme() {
-	let t = null;
-	try { t = localStorage.getItem("fp.theme"); } catch (e) { void e; }
-	if (t !== "dark" && t !== "light") {
-		t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+	let saved = Store.get("fp.theme");
+	if (saved !== "dark" && saved !== "light") {
+		saved = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 	}
-	document.documentElement.dataset.theme = t;
-	$("btnTheme").textContent = t === "dark" ? "浅色" : "深色";
+	document.documentElement.dataset.theme = saved;
 }
 
 /* ---------- 导出 ---------- */
@@ -1829,6 +2097,25 @@ function bindUi() {
 	$("btnPng").addEventListener("click", exportPng);
 	$("btnTheme").addEventListener("click", () => {
 		applyTheme(currentTheme() === "dark" ? "light" : "dark");
+	});
+
+	/* 语言切换 */
+	const langBtn = $("btnLang");
+	const langMenu = $("langMenu");
+	langBtn.addEventListener("click", ev => {
+		ev.stopPropagation();
+		langMenu.classList.toggle("open");
+	});
+	langMenu.querySelectorAll("button").forEach(b => {
+		b.addEventListener("click", ev => {
+			ev.stopPropagation();
+			applyLang(b.getAttribute("data-lang"), true);
+			langMenu.classList.remove("open");
+		});
+	});
+	document.addEventListener("click", () => langMenu.classList.remove("open"));
+	window.addEventListener("keydown", ev => {
+		if (ev.key === "Escape") langMenu.classList.remove("open");
 	});
 
 	$("btnIn").addEventListener("click", () => {
@@ -1914,7 +2201,7 @@ function boot() {
 			try { saved = localStorage.getItem("fp.theme"); } catch (e) { void e; }
 			if (saved === "dark" || saved === "light") return;
 			document.documentElement.dataset.theme = mq.matches ? "dark" : "light";
-			$("btnTheme").textContent = mq.matches ? "浅色" : "深色";
+			updateThemeLabel();
 			const p = palette();
 			App.curves.forEach((c, i) => { c.color = p[i % p.length]; });
 			renderCurveList();
@@ -1924,7 +2211,9 @@ function boot() {
 		else if (mq.addListener) mq.addListener(onChange);
 	}
 
+	/* 文案填充放在最后：此时曲线列表、读数区等动态区域均已建立 */
 	scheduleDraw();
+	applyLang(LANG, false);
 }
 
 /* ---------- 全局错误可见化：宁可显示错误，也不要白屏 ---------- */
@@ -1939,7 +2228,7 @@ function boot() {
 				+ "white-space:pre-wrap;max-height:45vh;overflow:auto";
 			document.body.appendChild(bar);
 		}
-		bar.textContent = "函数画板启动失败：\n" + msg;
+		bar.textContent = t("fatalPrefix") + "\n" + msg;
 	};
 	window.addEventListener("error", ev => {
 		report((ev.message || "未知错误") + "\n" + (ev.filename || "") + ":" + (ev.lineno || 0));
@@ -1954,6 +2243,7 @@ function boot() {
 function safeBoot() {
 	try {
 		initTheme();
+		LANG = detectLang();
 		boot();
 	} catch (e) {
 		if (window.__fpReport) window.__fpReport(e && e.stack ? e.stack : String(e));
