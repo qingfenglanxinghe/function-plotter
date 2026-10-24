@@ -75,7 +75,56 @@ x×2÷3     →  x*2/3
 | `R` | 回到原点 |
 | `+` / `-` | 缩放 |
 
-## 本地运行
+## 两种形态
+
+同一份 `index.html`，两种用法：
+
+| 形态 | 怎么用 | 适合谁 |
+|---|---|---|
+| **网页版** | 直接打开文件，或部署到 GitHub Pages | 任何设备，零安装 |
+| **macOS 应用** | 下载 DMG 拖进 Applications | 想要独立窗口、离线可用、不占浏览器标签页 |
+
+macOS 版只是一个 WKWebView 外壳，绘图与分析逻辑完全共用网页版，壳里不重复实现任何算法。
+
+![macOS 应用](docs/fp-app.png)
+
+## 安装 macOS 版
+
+从 [Releases](../../releases) 下载 `function-plotter-<版本>.dmg`，打开后把「函数画板」拖进 Applications。
+
+> **关于首次打开的提示**：产物是 ad-hoc 签名、未经 Apple 公证（公证需要付费开发者账号）。首次打开若提示「无法验证开发者」，右键点击应用 → 打开，或在「系统设置 → 隐私与安全性」里点「仍要打开」。这是未公证应用的标准行为，不影响功能。
+
+### 自己构建
+
+需要 Xcode 或 Command Line Tools（提供 `swiftc`）。纯命令行，不用打开 Xcode：
+
+```bash
+bash macos/build.sh        # 构建通用二进制（arm64 + x86_64）
+bash macos/package.sh      # 构建 + 打 DMG/PKG + 生成校验和
+```
+
+产物：
+
+```
+macos/build/函数画板.app
+dist/function-plotter-<版本>.dmg
+dist/function-plotter-<版本>.pkg
+dist/SHA256SUMS.txt
+```
+
+### 冒烟测试
+
+壳的正确性不能只靠「进程还活着」判断。这个测试不开窗口、不占 Dock，直接验证页面是否真的跑起来了：
+
+```bash
+cd macos
+swiftc -swift-version 5 -O -o build/verify verify/main.swift Sources/Scheme.swift
+./build/verify "build/函数画板.app/Contents/Resources" build/verify-shot.png
+```
+
+它会：加载 `fp://` 协议 → 检查有无致命错误 → 确认 canvas 已分配像素 → 确认分析读数已产出 → 确认开关配色正确 → 保存一张实际渲染快照供人工核对。
+
+## 本地运行（网页版）
 
 ```bash
 # 方式一：直接打开
@@ -106,6 +155,24 @@ node tests/engine.test.js
 
 - `1/x` 在原点附近符号翻转，**不得**被误判为零点
 - `tan(x)` 的每条渐近线都必须把曲线切成独立分支，**不得**连成竖线
+
+## 目录结构
+
+```
+index.html              全部功能（网页版与 App 共用这一份）
+tests/engine.test.js    引擎单元测试，106 项
+macos/
+  Sources/main.swift    应用外壳：窗口、菜单、首帧兜底
+  Sources/Scheme.swift  fp:// 资源协议（壳与测试共用）
+  verify/main.swift     离屏冒烟测试
+  make-icon.swift       程序化生成图标
+  build.sh              构建 .app
+  package.sh            打 DMG / PKG
+  version.env           版本号唯一来源
+docs/                   README 用截图
+```
+
+一条约定：**功能只改 `index.html`**。macOS 壳不含任何绘图或分析代码，只负责「把页面装进窗口」。所以不存在网页版和 App 版行为分叉的可能。
 
 ## 设计边界
 

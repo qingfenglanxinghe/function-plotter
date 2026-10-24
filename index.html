@@ -234,8 +234,13 @@ input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,9
 	box-shadow:0 1px 2px rgba(0,0,0,.20),0 2px 6px rgba(0,0,0,.14);
 	transition:transform .24s cubic-bezier(.32,1.35,.5,1);
 }
-.check input:checked{background:var(--accent)}
-.check input:checked::after{transform:translateX(16px)}
+/* 同时用 :checked 与 .on：「外观重置」过的 checkbox 在部分 WebKit 版本里
+   不会因属性变化重算 :checked 的样式（实测 matches 为真但背景不变），
+   由 JS 同步一个 .on 类作为可靠通道。 */
+.check input:checked,
+.check input.on{background:var(--accent)}
+.check input:checked::after,
+.check input.on::after{transform:translateX(16px)}
 .check input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .check input:disabled{opacity:.42;cursor:not-allowed}
 .check.off{opacity:.45;cursor:not-allowed}
@@ -377,7 +382,8 @@ html[data-theme="dark"] .hud{background:rgba(230,234,240,.94);color:#1f2733}
 	.check{padding:2px 0;font-size:11.5px;gap:5px}
 	.check input{width:32px;height:19px}
 	.check input::after{width:15px;height:15px}
-	.check input:checked::after{transform:translateX(13px)}
+	.check input:checked::after,
+	.check input.on::after{transform:translateX(13px)}
 	.tanrow{margin-top:6px;gap:6px}
 	.tanrow label{flex:0 0 46px;font-size:12px}
 	.tanrow input{height:28px;font-size:12px}
@@ -1536,6 +1542,10 @@ function draw() {
 	}
 }
 
+/* 调试钩子：离屏冒烟测试与浏览器控制台手动重绘用。
+   不参与正常流程，纯粹是给「确认到底画没画」留一个入口。 */
+window.__fpDraw = draw;
+
 function renderReadout(notes) {
 	const box = $("readout");
 	if (!notes || notes.length === 0) {
@@ -1791,9 +1801,16 @@ function exportPng() {
 	}, "image/png");
 }
 
-/* ============================================================
-   9. 启动
-   ============================================================ */
+/* ---------- 启动 ---------- */
+/** 设置分析开关的选中态。除 checked 外还要同步 .on 类，
+    原因见 CSS 里 ".check input:checked, .check input.on" 处的注释。 */
+function setSwitch(id, on) {
+	const el = $(id);
+	if (!el) return;
+	el.checked = on;
+	el.classList.toggle("on", on);
+}
+
 function bindUi() {
 	$("btnAdd").addEventListener("click", () => {
 		const c = addCurve("", true);
@@ -1825,6 +1842,7 @@ function bindUi() {
 		const el = $(id);
 		el.addEventListener("change", () => {
 			App.analysis[map[id]] = el.checked;
+			el.classList.toggle("on", el.checked);
 			scheduleDraw();
 		});
 	});
@@ -1862,8 +1880,8 @@ function boot() {
 
 	/* 默认示例：一条能同时展示零点、极值、导数的三次曲线 */
 	addCurve("x^3/3 - x", true);
-	$("anRoots").checked = true;
-	$("anExtrema").checked = true;
+	setSwitch("anRoots", true);
+	setSwitch("anExtrema", true);
 	App.analysis.roots = true;
 	App.analysis.extrema = true;
 

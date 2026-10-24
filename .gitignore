@@ -12,3 +12,7 @@ yarn-error.log*
 
 *.tmp
 *.bak
+
+# 构建产物
+macos/build/
+dist/
