@@ -12,7 +12,7 @@
 
 市面上不缺绘图工具，缺的是**不塞东西的工具**。
 
-这个项目只有一个目标：把「画函数」和「分析函数」这两件事做到位，其余一概不做。没有 3D、没有概率统计、没有 AI 对话、没有云同步。整个应用 **53 KB**，一个 `<script>`，没有构建步骤，没有 npm 依赖，没有后端。
+这个项目只有一个目标：把「画函数」和「分析函数」这两件事做到位，其余一概不做。没有 3D、没有概率统计、没有 AI 对话、没有云同步。整个应用 **57 KB**，一个 `<script>`，没有构建步骤，没有 npm 依赖，没有后端。
 
 你可以把它当一个教学工具，也可以把 `Expr` 引擎单独抠出来塞进自己的项目——那部分只依赖 `Math`。
 
@@ -35,6 +35,11 @@
 - 深色 / 浅色主题，跟随系统
 - 导出 PNG（2× 超采样）
 - 响应式布局，手机上可用
+
+<p>
+<img src="docs/fp-3-dark.png" width="640" alt="深色模式">
+<img src="docs/fp-4-mobile.png" width="200" alt="手机布局">
+</p>
 
 ## 表达式语法
 
@@ -127,7 +132,7 @@ node tests/engine.test.js
 
 A single-file, dependency-free plotting board focused on **functions and graph analysis**.
 
-Type `x^3/3 - x` and it shows the roots, the extrema, the intersections with other curves, the derivative curve, and the tangent at any point you specify. 53 KB, one HTML file, no build step, no npm, no backend.
+Type `x^3/3 - x` and it shows the roots, the extrema, the intersections with other curves, the derivative curve, and the tangent at any point you specify. 57 KB, one HTML file, no build step, no npm, no backend.
 
 **What it does:** multivariate curves (up to 8), adaptive grid, numeric root finding (bisection), extrema (golden-section search), curve intersections, numeric differentiation, tangent lines, PNG export, dark mode, responsive layout.
 
