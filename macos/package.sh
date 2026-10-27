@@ -70,6 +70,16 @@ hdiutil create \
 	-ov -format UDZO \
 	"${DMG}" 2>&1 | sed 's/^/    /'
 
+# -ov 会先删除同名旧文件，若创建失败则产物缺失。这里必须显式中断，
+# 否则会继续打 PKG，最终留下「有 pkg 没 dmg」的不完整产物。
+if [ ! -f "${DMG}" ]; then
+	echo "" >&2
+	echo "!! DMG 生成失败：${DMG} 不存在。" >&2
+	echo "   常见原因：同名卷仍挂载（hdiutil detach /Volumes/<卷名> 后重试），" >&2
+	echo "   或 /Volumes 下的临时文件清理被系统/防火墙拦截。" >&2
+	exit 1
+fi
+
 # ---------------------------------------------------------------- PKG
 # PKG 只装 .app，安装位置 /Applications
 
