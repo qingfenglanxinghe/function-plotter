@@ -182,7 +182,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 	/// 兜底绘制：某些窗口状态下 requestAnimationFrame 会被延迟，
 	/// 而「打开就是白板」对画板类应用是致命的。这里在加载完成后主动驱动一帧。
 	func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-		webView.evaluateJavaScript("window.__fpDraw && window.__fpDraw();", completionHandler: nil)
+		webView.evaluateJavaScript(
+			"window.FunctionPlot && window.FunctionPlot.redraw && window.FunctionPlot.redraw();",
+			completionHandler: nil
+		)
 	}
 
 	// MARK: WKUIDelegate

@@ -1807,13 +1807,9 @@ function draw() {
 	}
 }
 
-/* 公开 API：三个纯逻辑模块不含任何 DOM 依赖，可单独取用，
-   也便于在浏览器控制台直接调用（见 README「Extending」一节）。 */
-window.FunctionPlot = { Expr, Viewport, Numeric };
-
-/* 调试钩子：离屏冒烟测试与浏览器控制台手动重绘用。
-   不参与正常流程，纯粹是给「确认到底画没画」留一个入口。 */
-window.__fpDraw = draw;
+/* 公开 API：三个纯逻辑模块不含任何 DOM 依赖，可单独取用（见 README「扩展」一节）。
+   redraw 供外壳在首帧绘制被延迟时主动驱动一次，冒烟测试也用它验证绘制链路。 */
+window.FunctionPlot = { Expr, Viewport, Numeric, redraw: draw };
 
 function renderReadout(notes) {
 	const box = $("readout");

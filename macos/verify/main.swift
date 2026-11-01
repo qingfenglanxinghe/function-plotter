@@ -96,8 +96,9 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
 
 		// 离屏窗口里 rAF 可能被节流。若一帧都没画过，就手动驱动一次，
 		// 这样测的是「绘制逻辑本身」，而不是宿主是否愿意唤醒渲染。
-		if (lines === 0 && typeof window.__fpDraw === 'function') {
-			window.__fpDraw();
+		if (lines === 0 && typeof window.FunctionPlot === 'object'
+			&& typeof window.FunctionPlot.redraw === 'function') {
+			window.FunctionPlot.redraw();
 			forced = true;
 			lines = countLines();
 		}
@@ -181,7 +182,7 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
 		check("开关选中态配色正确", bg == "rgb(37,99,235)", "实得 \(bg.isEmpty ? "nil" : bg)")
 
 		if obj["forcedDraw"] as? Bool == true {
-			print("  · 注：rAF 未自动触发，已手动调用 __fpDraw 验证绘制逻辑")
+			print("  · 注：rAF 未自动触发，已手动调用 FunctionPlot.redraw() 验证绘制逻辑")
 		}
 
 		// 截图前把过渡固定为终态：离屏窗口不推进过渡，否则快照会拍到动画起始帧
